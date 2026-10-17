@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>出门</title>
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 16px/1.5 "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+      color: #1d2433;
+      background: #f4f6f8;
+    }
+    main { max-width: 640px; margin: 0 auto; padding: 16px; }
+    h1 { font-size: 1.35rem; margin: 0 0 8px; }
+    .muted { color: #667085; margin: 0 0 12px; }
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 14px;
+      margin: 0 0 12px;
+      box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+    }
+    .hero { font-size: 1.7rem; font-weight: 650; margin: 0; }
+    .row { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid #eef1f4; }
+    .row span:last-child { text-align: right; }
+    .note { color: #667085; margin: 0 0 8px; }
+    svg { width: 100%; height: auto; background: #f8fafc; border-radius: 10px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+    th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid #eef1f4; vertical-align: top; }
+    .scroll { overflow-x: auto; }
+    #map { width: 100%; height: 320px; border-radius: 10px; }
+    .dest { color: #8a5a00; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>出门</h1>
+  <p class="muted">{{ v.start_text }} – {{ v.end_text }}</p>
+  <section class="card">
+    <p class="hero">{{ v.distance_text }}</p>
+    <p class="muted">驾驶 {{ v.driving_text }} · 出门 {{ v.elapsed_text }}</p>
+    <div class="row"><span>起点围栏</span><span>{{ v.start_geofence }}</span></div>
+    <div class="row"><span>终点围栏</span><span>{{ v.end_geofence }}</span></div>
+    <div class="row"><span>起点地址</span><span>{{ v.start_address }}</span></div>
+    <div class="row"><span>终点地址</span><span>{{ v.end_address }}</span></div>
+  </section>
+  <section class="card">
+    {% if v.amap_key %}
+      <div id="map"></div>
+      <script id="map-data" type="application/json">{{ v.map_json | safe }}</script>
+      {% if v.show_security %}
+      <script>window._AMapSecurityConfig = {securityJsCode: {{ v.security_js | safe }}};</script>
+      {% endif %}
+      <script src="{{ v.amap_src | safe }}"></script>
+      <script>
+        const segments = JSON.parse(document.getElementById("map-data").textContent);
+        const map = new AMap.Map("map", {viewMode: "2D"});
+        const overlays = [];
+        for (const segment of segments) {
+          if (!segment.path.length) continue;
+          overlays.push(new AMap.Polyline({
+            path: segment.path,
+            strokeColor: segment.dashed ? "#667085" : "#175cd3",
+            strokeWeight: segment.dashed ? 3 : 5,
+            strokeStyle: segment.dashed ? "dashed" : "solid"
+          }));
+          if (segment.dashed && segment.label) {
+            const mid = segment.path[Math.floor(segment.path.length / 2)];
+            overlays.push(new AMap.Text({text: segment.label, position: mid, style: {color: "#344054", background: "#fff", border: "0", "font-size": "12px"}}));
+          }
+        }
+        map.add(overlays);
+        if (overlays.length) map.setFitView();
+      </script>
+    {% else %}
+      <p class="note">未配置高德 Key</p>
+      {% if v.has_track %}
+      <svg viewBox="0 0 {{ v.svg_width }} {{ v.svg_height }}" role="img" aria-label="行程折线">
+        {% for segment in v.map_segments %}
+          {% if segment.svg_points %}
+          <polyline data-kind="{{ segment.kind }}" data-dashed="{{ 1 if segment.dashed else 0 }}" points="{{ segment.svg_points }}" fill="none" stroke="{{ '#667085' if segment.dashed else '#175cd3' }}" stroke-width="{{ 3 if segment.dashed else 5 }}" {% if segment.dashed %}stroke-dasharray="10 8"{% endif %}></polyline>
+          {% if segment.label %}
+          <text data-label="parking" x="{{ segment.label_x }}" y="{{ segment.label_y }}" font-size="28" fill="#344054">{{ segment.label }}</text>
+          {% endif %}
+          {% endif %}
+        {% endfor %}
+      </svg>
+      {% else %}
+      <p>没有轨迹点</p>
+      {% endif %}
+    {% endif %}
+  </section>
+  <section class="card">
+    {% for stat in v.stats %}
+    <div class="row"><span>{{ stat.label }}</span><span>{{ stat.value }}</span></div>
+    {% endfor %}
+  </section>
+  <section class="card">
+    <h2>胎压</h2>
+    <p>{{ v.tire_text }}</p>
+    <h2>空调</h2>
+    {% for line in v.climate_lines %}
+    <p>{{ line }}</p>
+    {% endfor %}
+  </section>
+  {% if v.segments %}
+  <section class="card scroll">
+    <h2>分段</h2>
+    <table>
+      <thead>
+        <tr><th>时间</th><th>里程</th><th>时长</th><th>起点</th><th>终点</th><th>挪车</th></tr>
+      </thead>
+      <tbody>
+        {% for row in v.segments %}
+        <tr>
+          <td>{{ row.time_text }}</td>
+          <td>{{ row.distance_text }}</td>
+          <td>{{ row.duration_text }}</td>
+          <td>{{ row.start_text }}</td>
+          <td>{{ row.end_text }}</td>
+          <td>{{ row.shuffle_text }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+  {% if v.destination %}
+  <section class="card">
+    <p class="dest">停车前最后一次导航目的地，可能为空或不准</p>
+    <p>{{ v.destination }}</p>
+  </section>
+  {% endif %}
+</main>
+</body>
+</html>

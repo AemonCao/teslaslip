@@ -1,0 +1,14 @@
+# Compose 项目名 teslaslip。Unraid 目录用 TeslaSlip，与 TeslaMate 并列。
+# 这台阵列没有校验盘。部署到 NAS 前要人确认。不要声明对 TeslaMate 的依赖。
+name: teslaslip
+
+services:
+  teslaslip:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8791:8791"
+    env_file:
+      - .env
+    volumes:
+      - /mnt/user/appdata/teslaslip:/data

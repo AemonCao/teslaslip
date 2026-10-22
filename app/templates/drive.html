@@ -110,26 +110,11 @@
             </div>
             {% endfor %}
             <div class="car-wrap">
+              {% if v.car_shape == "model3" or v.car_shape == "modely" %}
+              <img class="car-photo" src="/static/cars/{{ v.car_shape }}.png" alt="" width="480" height="{{ 1030 if v.car_shape == 'model3' else 1017 }}">
+              {% else %}
               <svg class="car" viewBox="0 0 160 280" role="img" aria-hidden="true">
-                {% if v.car_shape == "model3" %}
-                <g class="shape shape-model3">
-                  <path class="body" d="M80 20C102 22 112 40 114 58C120 74 120 92 114 106C108 118 108 142 112 162C118 178 120 198 112 216C102 236 92 250 80 252C68 250 58 236 48 216C40 198 42 178 48 162C52 142 52 118 46 106C40 92 40 74 46 58C48 40 58 22 80 20Z"/>
-                  <path class="glass" d="M80 82C96 84 102 98 102 114L100 156C98 170 90 176 80 176C70 176 62 170 60 156L58 114C58 98 64 84 80 82Z"/>
-                  <path class="crease" d="M62 196H98"/>
-                  <path class="lamp" d="M58 42h16M86 42h16"/>
-                  <ellipse class="mirror" cx="32" cy="124" rx="9" ry="6"/>
-                  <ellipse class="mirror" cx="128" cy="124" rx="9" ry="6"/>
-                </g>
-                {% elif v.car_shape == "modely" %}
-                <g class="shape shape-modely">
-                  <path class="body" d="M80 16C110 18 120 42 122 66C128 82 126 102 118 114L118 196C124 210 122 228 112 240L100 250H60L48 240C38 228 36 210 42 196L42 114C34 102 32 82 38 66C40 42 50 18 80 16Z"/>
-                  <path class="glass" d="M80 66C104 68 110 84 110 102L112 214H96L90 226H70L64 226H48L50 214L50 102C50 84 56 68 80 66Z"/>
-                  <path class="crease" d="M50 232H110"/>
-                  <path class="lamp" d="M54 40h18M88 40h18"/>
-                  <ellipse class="mirror" cx="30" cy="118" rx="10" ry="6"/>
-                  <ellipse class="mirror" cx="130" cy="118" rx="10" ry="6"/>
-                </g>
-                {% elif v.car_shape == "models" %}
+                {% if v.car_shape == "models" %}
                 <g class="shape shape-models">
                   <path class="body" d="M80 14C104 18 116 42 118 66C124 84 116 102 110 116L108 188C112 206 108 228 96 242C88 252 72 252 64 242C52 228 48 206 52 188L50 116C44 102 36 84 42 66C44 42 56 18 80 14Z"/>
                   <path class="glass" d="M80 74C98 78 104 96 102 118C98 156 88 186 80 204C72 186 62 156 58 118C56 96 62 78 80 74Z"/>
@@ -173,6 +158,7 @@
                   <rect class="hub" x="135" y="201" width="10" height="16" rx="3"/>
                 </g>
               </svg>
+              {% endif %}
             </div>
           </div>
           {% if v.car_label %}

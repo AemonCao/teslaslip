@@ -238,11 +238,13 @@
   }
   .tire-meta { color: var(--secondary); font-size: 0.75rem; }
   .car-wrap { grid-area: car; grid-row: 1 / span 2; width: 9.5rem; }
-  .tires svg {
+  .tires svg,
+  .tires .car-photo {
     width: 100%;
     height: auto;
     background: transparent;
   }
+  .tires .car-photo { display: block; }
   .tires .body { fill: var(--surface); stroke: var(--text); stroke-width: 3; }
   .tires .glass { fill: var(--card); stroke: var(--separator); stroke-width: 2; }
   .tires .mirror { fill: var(--surface); stroke: var(--text); stroke-width: 2; }

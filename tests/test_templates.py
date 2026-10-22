@@ -119,7 +119,8 @@ def test_drive_template_draws_model_three_and_keeps_empty_tires(tmp_path):
     )
     html = render("drive.html", present)
     assert 'data-shape="model3"' in html
-    assert 'class="shape shape-model3"' in html
+    assert 'src="/static/cars/model3.png"' in html
+    assert "shape-model3" not in html
     assert "shape-modely" not in html
     assert "Model 3 SR+" in html
     assert "2.55" in html and "2.57" in html
@@ -137,6 +138,26 @@ def test_drive_template_draws_model_three_and_keeps_empty_tires(tmp_path):
     assert missing_html.count("本段没有胎压采样") == 2
     assert "Model 3 SR+" in missing_html
     assert 'data-pos="fr"' in missing_html
+
+    modely = build_drive_page(
+        [row],
+        [[TrackPoint(date=row.end_date, latitude=31.2, longitude=121.4, tpms_fl=2.4)]],
+        None,
+        settings,
+        Car(model="y"),
+    )
+    modely_html = render("drive.html", modely)
+    assert 'src="/static/cars/modely.png"' in modely_html
+    assert "shape-modely" not in modely_html
+
+    model_s = build_drive_page(
+        [row],
+        [[TrackPoint(date=row.end_date, latitude=31.2, longitude=121.4)]],
+        None,
+        settings,
+        Car(model="s"),
+    )
+    assert 'class="shape shape-models"' in render("drive.html", model_s)
 
 
 def test_drive_page_keeps_pressures_when_model_lookup_fails(tmp_path):

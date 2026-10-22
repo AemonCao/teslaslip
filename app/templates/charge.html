@@ -3,36 +3,22 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  {% include "_theme_head.html" %}
   <title>充电</title>
   <style>
-    :root { color-scheme: light; }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font: 16px/1.5 "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
-      color: #1d2433;
-      background: #f4f6f8;
-    }
-    main { max-width: 640px; margin: 0 auto; padding: 16px; }
-    h1 { font-size: 1.35rem; margin: 0 0 8px; }
-    .muted, .note { color: #667085; }
-    .card {
-      background: #fff;
-      border-radius: 14px;
-      padding: 14px;
-      margin: 0 0 12px;
-      box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
-    }
-    .row { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid #eef1f4; }
-    .row span:last-child { text-align: right; }
-    svg { width: 100%; height: 180px; background: #f8fafc; border-radius: 10px; }
+    svg { width: 100%; height: 180px; }
     #map { width: 100%; height: 220px; border-radius: 10px; }
   </style>
 </head>
 <body>
 <main>
-  <h1>{{ v.title }}</h1>
-  <p class="muted">{{ v.address }}</p>
+  <div class="top">
+    <div class="titles">
+      <h1>{{ v.title }}</h1>
+      <p class="muted">{{ v.address }}</p>
+    </div>
+    {% include "_theme_toggle.html" %}
+  </div>
   <section class="card">
     {% if v.amap_key %}
       <div id="map"></div>
@@ -43,16 +29,24 @@
       <script src="{{ v.amap_src | safe }}"></script>
       <script>
         const point = JSON.parse(document.getElementById("charge-point").textContent);
+        function amapStyle() {
+          return document.documentElement.getAttribute("data-theme") === "dark"
+            ? "amap://styles/dark"
+            : "amap://styles/normal";
+        }
         if (point) {
-          const map = new AMap.Map("map", {viewMode: "2D", zoom: 15, center: point.path});
+          const map = new AMap.Map("map", {viewMode: "2D", zoom: 15, center: point.path, mapStyle: amapStyle()});
           map.add(new AMap.Marker({position: point.path}));
+          document.addEventListener("teslaslip-theme", function () {
+            map.setMapStyle(amapStyle());
+          });
         }
       </script>
     {% else %}
       <p class="note">未配置高德 Key</p>
       {% if v.point %}
       <svg viewBox="0 0 320 180" role="img" aria-label="充电位置">
-        <circle data-kind="charge-point" cx="160" cy="90" r="8" fill="#175cd3"></circle>
+        <circle data-kind="charge-point" cx="160" cy="90" r="8"></circle>
       </svg>
       {% else %}
       <p>没有位置</p>

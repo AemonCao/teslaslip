@@ -3,42 +3,29 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  {% include "_theme_head.html" %}
   <title>出门</title>
   <style>
-    :root { color-scheme: light; }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font: 16px/1.5 "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
-      color: #1d2433;
-      background: #f4f6f8;
-    }
-    main { max-width: 640px; margin: 0 auto; padding: 16px; }
-    h1 { font-size: 1.35rem; margin: 0 0 8px; }
-    .muted { color: #667085; margin: 0 0 12px; }
-    .card {
-      background: #fff;
-      border-radius: 14px;
-      padding: 14px;
-      margin: 0 0 12px;
-      box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
-    }
+    .muted { margin: 0 0 12px; }
     .hero { font-size: 1.7rem; font-weight: 650; margin: 0; }
-    .row { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid #eef1f4; }
-    .row span:last-child { text-align: right; }
-    .note { color: #667085; margin: 0 0 8px; }
-    svg { width: 100%; height: auto; background: #f8fafc; border-radius: 10px; }
+    .note { margin: 0 0 8px; }
+    svg { width: 100%; height: auto; }
     table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
-    th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid #eef1f4; vertical-align: top; }
+    th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
     .scroll { overflow-x: auto; }
     #map { width: 100%; height: 320px; border-radius: 10px; }
-    .dest { color: #8a5a00; }
+    .dest { color: var(--dest); }
   </style>
 </head>
 <body>
 <main>
-  <h1>出门</h1>
-  <p class="muted">{{ v.start_text }} – {{ v.end_text }}</p>
+  <div class="top">
+    <div class="titles">
+      <h1>出门</h1>
+      <p class="muted">{{ v.start_text }} – {{ v.end_text }}</p>
+    </div>
+    {% include "_theme_toggle.html" %}
+  </div>
   <section class="card">
     <p class="hero">{{ v.distance_text }}</p>
     <p class="muted">驾驶 {{ v.driving_text }} · 出门 {{ v.elapsed_text }}</p>
@@ -57,8 +44,23 @@
       <script src="{{ v.amap_src | safe }}"></script>
       <script>
         const segments = JSON.parse(document.getElementById("map-data").textContent);
-        const map = new AMap.Map("map", {viewMode: "2D"});
+        function amapStyle() {
+          return document.documentElement.getAttribute("data-theme") === "dark"
+            ? "amap://styles/dark"
+            : "amap://styles/normal";
+        }
+        function labelStyle() {
+          const dark = document.documentElement.getAttribute("data-theme") === "dark";
+          return {
+            color: dark ? "#d0d5dd" : "#344054",
+            background: dark ? "#1c212b" : "#fff",
+            border: "0",
+            "font-size": "12px"
+          };
+        }
+        const map = new AMap.Map("map", {viewMode: "2D", mapStyle: amapStyle()});
         const overlays = [];
+        const labels = [];
         for (const segment of segments) {
           if (!segment.path.length) continue;
           overlays.push(new AMap.Polyline({
@@ -69,11 +71,18 @@
           }));
           if (segment.dashed && segment.label) {
             const mid = segment.path[Math.floor(segment.path.length / 2)];
-            overlays.push(new AMap.Text({text: segment.label, position: mid, style: {color: "#344054", background: "#fff", border: "0", "font-size": "12px"}}));
+            const label = new AMap.Text({text: segment.label, position: mid, style: labelStyle()});
+            labels.push(label);
+            overlays.push(label);
           }
         }
         map.add(overlays);
         if (overlays.length) map.setFitView();
+        document.addEventListener("teslaslip-theme", function () {
+          map.setMapStyle(amapStyle());
+          const style = labelStyle();
+          for (const label of labels) label.setStyle(style);
+        });
       </script>
     {% else %}
       <p class="note">未配置高德 Key</p>
@@ -81,9 +90,9 @@
       <svg viewBox="0 0 {{ v.svg_width }} {{ v.svg_height }}" role="img" aria-label="行程折线">
         {% for segment in v.map_segments %}
           {% if segment.svg_points %}
-          <polyline data-kind="{{ segment.kind }}" data-dashed="{{ 1 if segment.dashed else 0 }}" points="{{ segment.svg_points }}" fill="none" stroke="{{ '#667085' if segment.dashed else '#175cd3' }}" stroke-width="{{ 3 if segment.dashed else 5 }}" {% if segment.dashed %}stroke-dasharray="10 8"{% endif %}></polyline>
+          <polyline data-kind="{{ segment.kind }}" data-dashed="{{ 1 if segment.dashed else 0 }}" points="{{ segment.svg_points }}" fill="none" stroke-width="{{ 3 if segment.dashed else 5 }}" {% if segment.dashed %}stroke-dasharray="10 8"{% endif %}></polyline>
           {% if segment.label %}
-          <text data-label="parking" x="{{ segment.label_x }}" y="{{ segment.label_y }}" font-size="28" fill="#344054">{{ segment.label }}</text>
+          <text data-label="parking" x="{{ segment.label_x }}" y="{{ segment.label_y }}" font-size="28">{{ segment.label }}</text>
           {% endif %}
           {% endif %}
         {% endfor %}

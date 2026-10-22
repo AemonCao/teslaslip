@@ -1,0 +1,75 @@
+<script>
+(function () {
+  try {
+    if (localStorage.getItem("teslaslip-theme") === "dark") {
+      document.documentElement.setAttribute("data-theme", "dark");
+    }
+  } catch (e) {}
+})();
+</script>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f4f6f8;
+    --text: #1d2433;
+    --muted: #667085;
+    --card: #fff;
+    --line: #eef1f4;
+    --shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+    --surface: #f8fafc;
+    --accent: #175cd3;
+    --dest: #8a5a00;
+    --ink: #344054;
+  }
+  html[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #12151c;
+    --text: #e8eaed;
+    --muted: #9aa3b2;
+    --card: #1c212b;
+    --line: #2a3140;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --surface: #171c26;
+    --accent: #7aa2f7;
+    --dest: #e8b86d;
+    --ink: #d0d5dd;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font: 16px/1.5 "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+    color: var(--text);
+    background: var(--bg);
+  }
+  main { max-width: 640px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 1.35rem; margin: 0 0 8px; }
+  .muted, .note { color: var(--muted); }
+  .card {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 14px;
+    margin: 0 0 12px;
+    box-shadow: var(--shadow);
+  }
+  .row { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+  .row span:last-child { text-align: right; }
+  .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .titles { min-width: 0; }
+  .theme-toggle {
+    flex: none;
+    margin-top: 2px;
+    border: 1px solid var(--line);
+    background: var(--card);
+    color: var(--text);
+    border-radius: 999px;
+    padding: 4px 12px;
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  svg { background: var(--surface); border-radius: 10px; }
+  polyline[data-dashed="0"] { stroke: var(--accent); }
+  polyline[data-dashed="1"] { stroke: var(--muted); }
+  text[data-label="parking"] { fill: var(--ink); }
+  circle[data-kind="charge-point"] { fill: var(--accent); }
+</style>

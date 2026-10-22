@@ -4,7 +4,7 @@ name: teslaslip
 
 services:
   teslaslip:
-    build: .
+    image: ghcr.io/aemoncao/teslaslip:latest
     restart: unless-stopped
     ports:
       - "8791:8791"

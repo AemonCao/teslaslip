@@ -48,86 +48,12 @@
     </section>
     <section class="card map-card" data-section="map">
       {% if v.amap_key %}
-        <div id="map" data-amap-src="{{ v.amap_src | safe }}"></div>
+        <div id="drive-map-app" data-amap-src="{{ v.amap_src | safe }}"></div>
         <script id="map-data" type="application/json">{{ v.map_json | safe }}</script>
         {% if v.show_security %}
         <script>window._AMapSecurityConfig = {securityJsCode: {{ v.security_js | safe }}};</script>
         {% endif %}
-        <script>
-          (function () {
-            var started = false;
-            function shown() {
-              return document.documentElement.getAttribute("data-map") !== "off";
-            }
-            function cssColor(name) {
-              return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-            }
-            function dark() {
-              return document.documentElement.getAttribute("data-theme") === "dark";
-            }
-            function amapStyle() {
-              return dark() ? "amap://styles/dark" : "amap://styles/normal";
-            }
-            function labelStyle() {
-              return {
-                color: dark() ? "#f5f5f7" : "#1c1c1e",
-                background: dark() ? "rgba(28,28,30,0.92)" : "rgba(255,255,255,0.92)",
-                border: "0",
-                "font-size": "12px",
-                "border-radius": "6px",
-                padding: "2px 6px"
-              };
-            }
-            function lineColor(dashed) {
-              return dashed ? cssColor("--line") : cssColor("--accent");
-            }
-            function boot() {
-              const segments = JSON.parse(document.getElementById("map-data").textContent);
-              const map = new AMap.Map("map", {viewMode: "2D", mapStyle: amapStyle()});
-              const overlays = [];
-              const labels = [];
-              const lines = [];
-              for (const segment of segments) {
-                if (!segment.path.length) continue;
-                const line = new AMap.Polyline({
-                  path: segment.path,
-                  strokeColor: lineColor(segment.dashed),
-                  strokeOpacity: 1,
-                  strokeWeight: segment.dashed ? 3 : 5,
-                  strokeStyle: segment.dashed ? "dashed" : "solid"
-                });
-                lines.push({line: line, dashed: segment.dashed});
-                overlays.push(line);
-                if (segment.dashed && segment.label) {
-                  const first = segment.path[0];
-                  const last = segment.path[segment.path.length - 1];
-                  const mid = [(first[0] + last[0]) / 2, (first[1] + last[1]) / 2];
-                  const label = new AMap.Text({text: segment.label, position: mid, style: labelStyle()});
-                  labels.push(label);
-                  overlays.push(label);
-                }
-              }
-              map.add(overlays);
-              if (overlays.length) map.setFitView();
-              document.addEventListener("teslaslip-theme", function () {
-                map.setMapStyle(amapStyle());
-                const style = labelStyle();
-                for (const label of labels) label.setStyle(style);
-                for (const item of lines) item.line.setOptions({strokeColor: lineColor(item.dashed)});
-              });
-            }
-            function start() {
-              if (started || !shown()) return;
-              started = true;
-              var script = document.createElement("script");
-              script.src = document.getElementById("map").getAttribute("data-amap-src");
-              script.onload = boot;
-              document.head.appendChild(script);
-            }
-            start();
-            document.addEventListener("teslaslip-theme", start);
-          })();
-        </script>
+        {% if island is defined %}{{ island("drive-map") }}{% endif %}
       {% else %}
         <p class="note">未配置高德 Key</p>
         {% if v.has_track %}

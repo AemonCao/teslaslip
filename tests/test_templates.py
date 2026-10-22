@@ -87,13 +87,10 @@ def test_drive_template_groups_fields_without_repeating_hero(tmp_path):
         assert row.duration_text in html
         assert row.start_text in html and row.end_text in html
         assert f"挪车 {row.shuffle_text}" in html
-    assert "setOptions" in html
-    assert "#007aff" in html and "#0a84ff" in html
-    assert "prefers-color-scheme" in html
-    assert "prefers-reduced-motion" in html
-    assert "scale(0.97)" in html
+    assert 'id="drive-map-app"' in html
+    assert 'id="map-data"' in html
+    assert "webapi.amap.com/maps?v=2.0&key=test-key" in html
     assert 'href="/settings"' in html
-    assert "teslaslip-ui" in html
     for section in ("map", "driving", "range", "odometer", "environment", "vehicle", "segments", "destination"):
         assert f'data-section="{section}"' in html
     assert 'data-range="rated"' in html
@@ -252,12 +249,12 @@ def test_charge_template_puts_session_in_the_hero(tmp_path):
     assert "未配置高德 Key" in empty_html
 
 
-def test_settings_template_lists_display_controls():
+def test_settings_template_keeps_the_page_shell():
     html = ENV.get_template("settings.html").render()
-    for label in ("跟随系统", "浅色", "深色", "标准", "大", "显示地图", "紧凑", "标准", "高", "驾驶", "续航", "里程表", "环境", "车辆", "分段", "导航目的地", "额定", "理想", "都显示", "采样明细", "恢复默认"):
-        assert label in html
-    assert "teslaslip-ui" in html
-    assert "history.back" in html
+    assert "<h1>设置</h1>" in html
+    assert "只保存在这台手机上" in html
+    assert 'id="settings-app"' in html
+    assert 'id="settings-back-slot"' in html
     assert 'name="format-detection" content="telephone=no"' in html
 
 
@@ -268,8 +265,9 @@ def test_settings_route_returns_page_and_root_stays_missing(tmp_path):
             settings = client.get("/settings")
             root = client.get("/")
         assert settings.status_code == 200
-        assert "恢复默认" in settings.text
-        assert "teslaslip-ui" in settings.text
+        assert "<h1>设置</h1>" in settings.text
+        assert "只保存在这台手机上" in settings.text
+        assert 'id="settings-app"' in settings.text
         assert root.status_code == 404
         assert root.text == "未找到"
 

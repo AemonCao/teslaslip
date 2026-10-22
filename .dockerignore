@@ -1,8 +1,7 @@
 .git
 .venv
-.env
 **/__pycache__
-.pytest_cache
-tests
-*.md
-*.sqlite
+**/.pytest_cache
+app/static
+web/node_modules
+.env

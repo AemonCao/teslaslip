@@ -174,6 +174,18 @@ python -m venv .venv
 python -m app
 ```
 
+页面样式和交互在 `web/`。镜像构建时会执行 `npm ci` 和 `npm run build`，产物放进 `app/static`，由这个 Python 进程内联样式和首屏脚本，并托管岛屿脚本。
+
+本机改界面时另开一个终端：
+
+```powershell
+cd web
+npm install
+npm run dev
+```
+
+再设 `TESLASLIP_VITE_DEV=1` 后启动 `python -m app`。这个变量只给本机开发用，不要写进 NAS 的 `.env`。没设它、又没有构建产物时，页面仍能打开，只是没有样式、设置开关和地图脚本。
+
 容器监听 `8791`。镜像基于 `python:3.12-slim`，时区是 `Asia/Shanghai`，健康检查访问 `http://127.0.0.1:8791/healthz`。
 
 ```powershell
@@ -190,6 +202,8 @@ docker compose up -d --build
 
 ```powershell
 .\.venv\Scripts\pytest
+cd web
+npm test
 ```
 
 覆盖出门分组、挪车判断、水位、GCJ-02、链接过期、页面、Bark 文案、MQTT 状态机、只读 SQL 和日志脱敏。
@@ -207,7 +221,9 @@ app/db.py            SQLite
 app/bark.py          Bark 文案和 HTTP
 app/pages.py         页面数据
 app/geo.py           WGS-84 转 GCJ-02，轨迹抽稀
-app/templates/       出门页、充电页
+app/webassets.py     前端构建产物
+app/templates/       出门页、充电页、设置页
+web/                 Vue 3 岛屿、主题脚本和样式
 tests/               单元测试和验收测试
 开发计划.md          实现规格
 ```

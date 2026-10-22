@@ -7,6 +7,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -16,6 +17,7 @@ from app.pages import build_charge_page, build_drive_page, link_expired
 from app.redact import SecretVault, log_event, setup_logging
 from app.runtime import Runtime
 from app.teslamate import PostgresTeslaMate
+from app.webassets import STATIC_DIR, WebAssets
 
 NOT_FOUND = "未找到"
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -110,6 +112,12 @@ def create_app(runtime: Runtime) -> FastAPI:
     @app.get("/", response_class=HTMLResponse)
     def index():
         return HTMLResponse(NOT_FOUND, status_code=404)
+
+    assets = WebAssets()
+    templates.env.globals["assets"] = assets
+    templates.env.globals["island"] = assets.island
+    if STATIC_DIR.is_dir():
+        app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
     return app
 

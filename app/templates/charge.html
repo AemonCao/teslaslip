@@ -26,43 +26,12 @@
     </section>
     <section class="card map-card" data-section="map">
       {% if v.amap_key %}
-        <div id="map" data-amap-src="{{ v.amap_src | safe }}"></div>
+        <div id="charge-map-app" data-amap-src="{{ v.amap_src | safe }}"></div>
         <script id="charge-point" type="application/json">{{ v.point_json | safe }}</script>
         {% if v.show_security %}
         <script>window._AMapSecurityConfig = {securityJsCode: {{ v.security_js | safe }}};</script>
         {% endif %}
-        <script>
-          (function () {
-            var started = false;
-            function shown() {
-              return document.documentElement.getAttribute("data-map") !== "off";
-            }
-            function amapStyle() {
-              return document.documentElement.getAttribute("data-theme") === "dark"
-                ? "amap://styles/dark"
-                : "amap://styles/normal";
-            }
-            function boot() {
-              const point = JSON.parse(document.getElementById("charge-point").textContent);
-              if (!point) return;
-              const map = new AMap.Map("map", {viewMode: "2D", zoom: 15, center: point.path, mapStyle: amapStyle()});
-              map.add(new AMap.Marker({position: point.path}));
-              document.addEventListener("teslaslip-theme", function () {
-                map.setMapStyle(amapStyle());
-              });
-            }
-            function start() {
-              if (started || !shown()) return;
-              started = true;
-              var script = document.createElement("script");
-              script.src = document.getElementById("map").getAttribute("data-amap-src");
-              script.onload = boot;
-              document.head.appendChild(script);
-            }
-            start();
-            document.addEventListener("teslaslip-theme", start);
-          })();
-        </script>
+        {% if island is defined %}{{ island("charge-map") }}{% endif %}
       {% else %}
         <p class="note">未配置高德 Key</p>
         {% if v.point %}

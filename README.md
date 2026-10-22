@@ -40,6 +40,7 @@ SQLite 里的 `drive_watermark` 和 `charge_watermark` 是已经处理过的最�
 | --- | --- |
 | `/d/{token}` | 出门总结 |
 | `/c/{token}` | 充电总结 |
+| `/settings` | 这台手机的显示设置 |
 | `/healthz` | 健康检查 |
 | `/` | 返回「未找到」 |
 
@@ -47,7 +48,7 @@ SQLite 里的 `drive_watermark` 和 `charge_watermark` 是已经处理过的最�
 
 `TRIP_LINK_TTL_DAYS` 为 `0` 时链接一直有效。正整数表示从创建起多少天，超过这个时间再打开返回 404。
 
-没有登录，没有历史列表，没有管理页，也没有 OpenAPI 文档。
+没有登录，没有历史列表，没有管理页，也没有 OpenAPI 文档。`/settings` 只改当前浏览器里的主题、地图和显示哪些块，不改服务配置。
 
 时间按 `Asia/Shanghai` 显示。TeslaMate 里的 `timestamp without time zone` 按 UTC 理解。坐标在服务端从 WGS-84 转成 GCJ-02 再交给页面，中国境外的点保持原坐标。
 

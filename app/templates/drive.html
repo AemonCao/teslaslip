@@ -16,11 +16,8 @@
     {% set heading.text = end_name %}
   {% endif %}
   <title>{{ heading.text }}</title>
-  <style>
-    #map { height: 300px; }
-  </style>
 </head>
-<body>
+<body data-page="drive">
 <div class="sheet">
   <header class="bar">
     <div class="bar-row">
@@ -49,68 +46,87 @@
         </div>
       </div>
     </section>
-    <section class="card map-card">
+    <section class="card map-card" data-section="map">
       {% if v.amap_key %}
-        <div id="map"></div>
+        <div id="map" data-amap-src="{{ v.amap_src | safe }}"></div>
         <script id="map-data" type="application/json">{{ v.map_json | safe }}</script>
         {% if v.show_security %}
         <script>window._AMapSecurityConfig = {securityJsCode: {{ v.security_js | safe }}};</script>
         {% endif %}
-        <script src="{{ v.amap_src | safe }}"></script>
         <script>
-          const segments = JSON.parse(document.getElementById("map-data").textContent);
-          function dark() {
-            return document.documentElement.getAttribute("data-theme") === "dark";
-          }
-          function amapStyle() {
-            return dark() ? "amap://styles/dark" : "amap://styles/normal";
-          }
-          function labelStyle() {
-            return {
-              color: dark() ? "#f5f5f7" : "#1c1c1e",
-              background: dark() ? "rgba(28,28,30,0.92)" : "rgba(255,255,255,0.92)",
-              border: "0",
-              "font-size": "12px",
-              "border-radius": "6px",
-              padding: "2px 6px"
-            };
-          }
-          function lineColor(dashed) {
-            if (dashed) return dark() ? "#98989d" : "#8e8e93";
-            return dark() ? "#0a84ff" : "#007aff";
-          }
-          const map = new AMap.Map("map", {viewMode: "2D", mapStyle: amapStyle()});
-          const overlays = [];
-          const labels = [];
-          const lines = [];
-          for (const segment of segments) {
-            if (!segment.path.length) continue;
-            const line = new AMap.Polyline({
-              path: segment.path,
-              strokeColor: lineColor(segment.dashed),
-              strokeOpacity: 1,
-              strokeWeight: segment.dashed ? 3 : 5,
-              strokeStyle: segment.dashed ? "dashed" : "solid"
-            });
-            lines.push({line: line, dashed: segment.dashed});
-            overlays.push(line);
-            if (segment.dashed && segment.label) {
-              const first = segment.path[0];
-              const last = segment.path[segment.path.length - 1];
-              const mid = [(first[0] + last[0]) / 2, (first[1] + last[1]) / 2];
-              const label = new AMap.Text({text: segment.label, position: mid, style: labelStyle()});
-              labels.push(label);
-              overlays.push(label);
+          (function () {
+            var started = false;
+            function shown() {
+              return document.documentElement.getAttribute("data-map") !== "off";
             }
-          }
-          map.add(overlays);
-          if (overlays.length) map.setFitView();
-          document.addEventListener("teslaslip-theme", function () {
-            map.setMapStyle(amapStyle());
-            const style = labelStyle();
-            for (const label of labels) label.setStyle(style);
-            for (const item of lines) item.line.setOptions({strokeColor: lineColor(item.dashed)});
-          });
+            function cssColor(name) {
+              return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+            }
+            function dark() {
+              return document.documentElement.getAttribute("data-theme") === "dark";
+            }
+            function amapStyle() {
+              return dark() ? "amap://styles/dark" : "amap://styles/normal";
+            }
+            function labelStyle() {
+              return {
+                color: dark() ? "#f5f5f7" : "#1c1c1e",
+                background: dark() ? "rgba(28,28,30,0.92)" : "rgba(255,255,255,0.92)",
+                border: "0",
+                "font-size": "12px",
+                "border-radius": "6px",
+                padding: "2px 6px"
+              };
+            }
+            function lineColor(dashed) {
+              return dashed ? cssColor("--line") : cssColor("--accent");
+            }
+            function boot() {
+              const segments = JSON.parse(document.getElementById("map-data").textContent);
+              const map = new AMap.Map("map", {viewMode: "2D", mapStyle: amapStyle()});
+              const overlays = [];
+              const labels = [];
+              const lines = [];
+              for (const segment of segments) {
+                if (!segment.path.length) continue;
+                const line = new AMap.Polyline({
+                  path: segment.path,
+                  strokeColor: lineColor(segment.dashed),
+                  strokeOpacity: 1,
+                  strokeWeight: segment.dashed ? 3 : 5,
+                  strokeStyle: segment.dashed ? "dashed" : "solid"
+                });
+                lines.push({line: line, dashed: segment.dashed});
+                overlays.push(line);
+                if (segment.dashed && segment.label) {
+                  const first = segment.path[0];
+                  const last = segment.path[segment.path.length - 1];
+                  const mid = [(first[0] + last[0]) / 2, (first[1] + last[1]) / 2];
+                  const label = new AMap.Text({text: segment.label, position: mid, style: labelStyle()});
+                  labels.push(label);
+                  overlays.push(label);
+                }
+              }
+              map.add(overlays);
+              if (overlays.length) map.setFitView();
+              document.addEventListener("teslaslip-theme", function () {
+                map.setMapStyle(amapStyle());
+                const style = labelStyle();
+                for (const label of labels) label.setStyle(style);
+                for (const item of lines) item.line.setOptions({strokeColor: lineColor(item.dashed)});
+              });
+            }
+            function start() {
+              if (started || !shown()) return;
+              started = true;
+              var script = document.createElement("script");
+              script.src = document.getElementById("map").getAttribute("data-amap-src");
+              script.onload = boot;
+              document.head.appendChild(script);
+            }
+            start();
+            document.addEventListener("teslaslip-theme", start);
+          })();
         </script>
       {% else %}
         <p class="note">未配置高德 Key</p>
@@ -130,31 +146,31 @@
         {% endif %}
       {% endif %}
     </section>
-    <section class="group">
+    <section class="group" data-section="driving">
       <h2>驾驶</h2>
       <div class="card">
         {{ rows(v.stats, ["最高速度", "最大输出", "最大回收", "爬升", "下降"]) }}
       </div>
     </section>
-    <section class="group">
+    <section class="group" data-section="range">
       <h2>续航</h2>
       <div class="card">
         {{ rows(v.stats, ["起点额定续航", "终点额定续航", "额定续航差", "起点理想续航", "终点理想续航", "理想续航差", "起点电量", "起点可用电量", "终点电量", "终点可用电量"]) }}
       </div>
     </section>
-    <section class="group">
+    <section class="group" data-section="odometer">
       <h2>里程</h2>
       <div class="card">
         {{ rows(v.stats, ["起点里程表", "终点里程表"]) }}
       </div>
     </section>
-    <section class="group">
+    <section class="group" data-section="environment">
       <h2>环境</h2>
       <div class="card">
         {{ rows(v.stats, ["车外温度", "车内温度"]) }}
       </div>
     </section>
-    <section class="group">
+    <section class="group" data-section="vehicle">
       <h2>车辆</h2>
       <div class="card">
         <div class="row row-stack"><span>胎压</span><span class="value">{{ v.tire_text }}</span></div>
@@ -165,7 +181,7 @@
       </div>
     </section>
     {% if v.segments %}
-    <section class="group">
+    <section class="group" data-section="segments">
       <h2>分段</h2>
       <div class="card">
         {% for row in v.segments %}
@@ -181,8 +197,10 @@
     </section>
     {% endif %}
     {% if v.destination %}
-    <p class="footnote">停车前最后一次导航目的地，可能为空或不准</p>
-    <p class="footnote-value">{{ v.destination }}</p>
+    <div data-section="destination">
+      <p class="footnote">停车前最后一次导航目的地，可能为空或不准</p>
+      <p class="footnote-value">{{ v.destination }}</p>
+    </div>
     {% endif %}
   </main>
 </div>

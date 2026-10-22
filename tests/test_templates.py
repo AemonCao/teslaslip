@@ -1,11 +1,14 @@
+import asyncio
 from datetime import timedelta
 from pathlib import Path
 
+from fastapi.testclient import TestClient
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+from app.main import create_app
 from app.models import Address, ChargeSample, TrackPoint
 from app.pages import build_charge_page, build_drive_page
-from tests.fakes import STREET, T0, make_charge, make_drive, make_settings
+from tests.fakes import STREET, T0, boot, make_charge, make_drive, make_settings
 
 TEMPLATES = Path(__file__).resolve().parents[1] / "app" / "templates"
 ENV = Environment(
@@ -84,6 +87,12 @@ def test_drive_template_groups_fields_without_repeating_hero(tmp_path):
     assert "prefers-color-scheme" in html
     assert "prefers-reduced-motion" in html
     assert "scale(0.97)" in html
+    assert 'href="/settings"' in html
+    assert "teslaslip-ui" in html
+    for section in ("map", "driving", "range", "odometer", "environment", "vehicle", "segments", "destination"):
+        assert f'data-section="{section}"' in html
+    assert 'data-range="rated"' in html
+    assert 'data-range="ideal"' in html
 
 
 def test_drive_template_without_geofence_uses_plain_title(tmp_path):
@@ -131,6 +140,11 @@ def test_charge_template_puts_session_in_the_hero(tmp_path):
     for stat in page["charger"]:
         assert stat.label in html
         assert stat.value in html
+    assert 'href="/settings"' in html
+    assert 'data-section="map"' in html
+    assert 'data-section="samples"' in html
+    assert 'data-range="rated"' in html
+    assert 'data-range="ideal"' in html
 
     empty = build_charge_page(
         make_charge(2, T0, T0 + timedelta(minutes=10), latitude=None, longitude=None),
@@ -141,3 +155,26 @@ def test_charge_template_puts_session_in_the_hero(tmp_path):
     assert "没有充电采样" in empty_html
     assert "没有位置" in empty_html
     assert "未配置高德 Key" in empty_html
+
+
+def test_settings_template_lists_display_controls():
+    html = ENV.get_template("settings.html").render()
+    for label in ("跟随系统", "浅色", "深色", "标准", "大", "显示地图", "紧凑", "标准", "高", "驾驶", "续航", "里程表", "环境", "车辆", "分段", "导航目的地", "额定", "理想", "都显示", "采样明细", "恢复默认"):
+        assert label in html
+    assert "teslaslip-ui" in html
+    assert "history.back" in html
+
+
+def test_settings_route_returns_page_and_root_stays_missing(tmp_path):
+    async def body():
+        runtime, _tm, _bark, _clock = await boot(tmp_path)
+        with TestClient(create_app(runtime)) as client:
+            settings = client.get("/settings")
+            root = client.get("/")
+        assert settings.status_code == 200
+        assert "恢复默认" in settings.text
+        assert "teslaslip-ui" in settings.text
+        assert root.status_code == 404
+        assert root.text == "未找到"
+
+    asyncio.run(body())

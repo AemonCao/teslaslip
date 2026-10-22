@@ -95,6 +95,10 @@ def create_app(runtime: Runtime) -> FastAPI:
         page = build_charge_page(charge, runtime.settings)
         return templates.TemplateResponse(request, "charge.html", {"v": page})
 
+    @app.get("/settings", response_class=HTMLResponse)
+    def settings_page(request: Request):
+        return templates.TemplateResponse(request, "settings.html", {})
+
     @app.get("/", response_class=HTMLResponse)
     def index():
         return HTMLResponse(NOT_FOUND, status_code=404)

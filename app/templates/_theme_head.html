@@ -1,12 +1,127 @@
 <script>
 (function () {
-  try {
-    var stored = localStorage.getItem("teslaslip-theme");
-    var systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    if (stored === "dark" || (stored !== "light" && systemDark)) {
-      document.documentElement.setAttribute("data-theme", "dark");
+  var KEY = "teslaslip-ui";
+  var LEGACY = "teslaslip-theme";
+  var ACCENTS = {blue: 1, green: 1, orange: 1, purple: 1};
+  var HEIGHTS = {compact: 1, standard: 1, tall: 1};
+  var RANGES = {rated: 1, ideal: 1, both: 1};
+  var SECTIONS = ["driving", "range", "odometer", "environment", "vehicle", "segments", "destination"];
+
+  function defaults() {
+    return {
+      theme: "system",
+      accent: "blue",
+      text: "standard",
+      map: true,
+      mapHeight: "standard",
+      sections: {
+        driving: true,
+        range: true,
+        odometer: true,
+        environment: true,
+        vehicle: true,
+        segments: true,
+        destination: true
+      },
+      rangeMode: "both",
+      chargeSamples: true
+    };
+  }
+
+  function normalize(raw) {
+    var base = defaults();
+    if (!raw || typeof raw !== "object") return base;
+    if (raw.theme === "light" || raw.theme === "dark" || raw.theme === "system") base.theme = raw.theme;
+    if (ACCENTS[raw.accent]) base.accent = raw.accent;
+    if (raw.text === "large" || raw.text === "standard") base.text = raw.text;
+    if (typeof raw.map === "boolean") base.map = raw.map;
+    if (HEIGHTS[raw.mapHeight]) base.mapHeight = raw.mapHeight;
+    if (RANGES[raw.rangeMode]) base.rangeMode = raw.rangeMode;
+    if (typeof raw.chargeSamples === "boolean") base.chargeSamples = raw.chargeSamples;
+    if (raw.sections && typeof raw.sections === "object") {
+      for (var i = 0; i < SECTIONS.length; i++) {
+        var name = SECTIONS[i];
+        if (typeof raw.sections[name] === "boolean") base.sections[name] = raw.sections[name];
+      }
     }
+    return base;
+  }
+
+  function read() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (raw) return normalize(JSON.parse(raw));
+      var prefs = defaults();
+      var legacy = localStorage.getItem(LEGACY);
+      if (legacy === "light" || legacy === "dark") prefs.theme = legacy;
+      return prefs;
+    } catch (e) {
+      return defaults();
+    }
+  }
+
+  function systemDark() {
+    try {
+      return window.matchMedia("(prefers-color-scheme: dark)").matches;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function resolvedDark(prefs) {
+    if (prefs.theme === "dark") return true;
+    if (prefs.theme === "light") return false;
+    return systemDark();
+  }
+
+  function apply(prefs) {
+    var root = document.documentElement;
+    if (resolvedDark(prefs)) root.setAttribute("data-theme", "dark");
+    else root.removeAttribute("data-theme");
+    if (prefs.accent === "blue") root.removeAttribute("data-accent");
+    else root.setAttribute("data-accent", prefs.accent);
+    if (prefs.text === "large") root.setAttribute("data-text", "large");
+    else root.removeAttribute("data-text");
+    if (prefs.map) root.removeAttribute("data-map");
+    else root.setAttribute("data-map", "off");
+    if (prefs.mapHeight === "standard") root.removeAttribute("data-map-height");
+    else root.setAttribute("data-map-height", prefs.mapHeight);
+    if (prefs.rangeMode === "both") root.removeAttribute("data-range");
+    else root.setAttribute("data-range", prefs.rangeMode);
+    var hidden = [];
+    for (var i = 0; i < SECTIONS.length; i++) {
+      if (!prefs.sections[SECTIONS[i]]) hidden.push(SECTIONS[i]);
+    }
+    if (!prefs.chargeSamples) hidden.push("samples");
+    if (hidden.length) root.setAttribute("data-hide", hidden.join(" "));
+    else root.removeAttribute("data-hide");
+    document.dispatchEvent(new Event("teslaslip-theme"));
+  }
+
+  function save(prefs) {
+    var next = normalize(prefs);
+    try {
+      localStorage.setItem(KEY, JSON.stringify(next));
+    } catch (e) {}
+    apply(next);
+    return next;
+  }
+
+  apply(read());
+  window.addEventListener("pageshow", function () {
+    apply(read());
+  });
+  try {
+    var media = window.matchMedia("(prefers-color-scheme: dark)");
+    var onScheme = function () {
+      var prefs = read();
+      if (prefs.theme === "system") apply(prefs);
+    };
+    if (media.addEventListener) media.addEventListener("change", onScheme);
+    else if (media.addListener) media.addListener(onScheme);
   } catch (e) {}
+
+  window.teslaslipUI = {defaults: defaults, read: read, save: save};
 })();
 </script>
 <style>
@@ -38,6 +153,24 @@
     --fade: rgba(0, 0, 0, 0.95);
     --line: #98989d;
   }
+  html[data-accent="green"] { --accent: #34c759; }
+  html[data-theme="dark"][data-accent="green"] { --accent: #30d158; }
+  html[data-accent="orange"] { --accent: #ff9500; }
+  html[data-theme="dark"][data-accent="orange"] { --accent: #ff9f0a; }
+  html[data-accent="purple"] { --accent: #af52de; }
+  html[data-theme="dark"][data-accent="purple"] { --accent: #bf5af2; }
+  html[data-text="large"] { font-size: 112.5%; }
+  html[data-map="off"] [data-section="map"],
+  html[data-hide~="driving"] [data-section="driving"],
+  html[data-hide~="range"] [data-section="range"],
+  html[data-hide~="odometer"] [data-section="odometer"],
+  html[data-hide~="environment"] [data-section="environment"],
+  html[data-hide~="vehicle"] [data-section="vehicle"],
+  html[data-hide~="segments"] [data-section="segments"],
+  html[data-hide~="destination"] [data-section="destination"],
+  html[data-hide~="samples"] [data-section="samples"],
+  html[data-range="rated"] [data-range="ideal"],
+  html[data-range="ideal"] [data-range="rated"] { display: none; }
   * { box-sizing: border-box; }
   html { background: var(--bg); }
   body {
@@ -104,7 +237,7 @@
   .hero { padding-top: 12px; }
   .hero-metric {
     margin: 0;
-    font-size: clamp(2.5rem, 12vw, 3.25rem);
+    font-size: clamp(40px, 12vw, 52px);
     font-weight: 600;
     letter-spacing: -0.022em;
     line-height: 1.02;
@@ -180,6 +313,7 @@
   }
   .row-stack { flex-direction: column; align-items: stretch; gap: 2px; }
   .row-stack .value { max-width: none; text-align: left; font-weight: 400; }
+  .row-stack .choice, .row-stack .swatches { margin-top: 6px; }
   .seg-top {
     display: flex;
     justify-content: space-between;
@@ -209,16 +343,84 @@
     -webkit-tap-highlight-color: transparent;
     transition: transform 100ms ease-out, background-color 200ms ease, color 200ms ease;
   }
+  a.theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+  }
   .theme-toggle:active { transform: scale(0.97); }
+  .choice {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: var(--fill);
+    border-radius: 10px;
+  }
+  .choice button, .switch, .swatch, .reset {
+    border: 0;
+    font: inherit;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 100ms ease-out, background-color 200ms ease, color 200ms ease, box-shadow 200ms ease;
+  }
+  .choice button {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    color: var(--text);
+    border-radius: 8px;
+    min-height: 32px;
+    padding: 6px 8px;
+    font-size: 0.8125rem;
+  }
+  .choice button[aria-pressed="true"] { background: var(--card); font-weight: 600; }
+  .switch {
+    flex: none;
+    background: var(--fill);
+    color: var(--secondary);
+    border-radius: 999px;
+    min-width: 52px;
+    min-height: 32px;
+    padding: 4px 12px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+  .switch[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  .swatches { display: flex; gap: 12px; align-items: center; }
+  .swatch { width: 28px; height: 28px; border-radius: 50%; padding: 0; }
+  .swatch[data-value="blue"] { background: #007aff; }
+  html[data-theme="dark"] .swatch[data-value="blue"] { background: #0a84ff; }
+  .swatch[data-value="green"] { background: #34c759; }
+  html[data-theme="dark"] .swatch[data-value="green"] { background: #30d158; }
+  .swatch[data-value="orange"] { background: #ff9500; }
+  html[data-theme="dark"] .swatch[data-value="orange"] { background: #ff9f0a; }
+  .swatch[data-value="purple"] { background: #af52de; }
+  html[data-theme="dark"] .swatch[data-value="purple"] { background: #bf5af2; }
+  .swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--text); }
+  .choice button:active, .switch:active, .swatch:active, .reset:active { transform: scale(0.97); }
+  button.reset {
+    width: 100%;
+    background: transparent;
+    color: var(--accent);
+    font-weight: 600;
+    justify-content: center;
+  }
   #map { width: 100%; }
+  body[data-page="drive"] #map { height: 300px; }
+  body[data-page="charge"] #map { height: 220px; }
+  html[data-map-height="compact"] body[data-page="drive"] #map { height: 180px; }
+  html[data-map-height="compact"] body[data-page="charge"] #map { height: 140px; }
+  html[data-map-height="tall"] body[data-page="drive"] #map { height: 460px; }
+  html[data-map-height="tall"] body[data-page="charge"] #map { height: 340px; }
   svg { display: block; width: 100%; height: auto; background: var(--surface); }
   polyline[data-dashed="0"] { stroke: var(--accent); }
   polyline[data-dashed="1"] { stroke: var(--line); }
   text[data-label="parking"] { fill: var(--text); }
   circle[data-kind="charge-point"] { fill: var(--accent); }
   @media (prefers-reduced-motion: reduce) {
-    html, body, .card, .bar, .theme-toggle { transition: none; }
-    .theme-toggle:active { transform: none; }
+    html, body, .card, .bar, .theme-toggle, .choice button, .switch, .swatch, .reset { transition: none; }
+    .theme-toggle:active, .choice button:active, .switch:active, .swatch:active, .reset:active { transform: none; }
   }
   @media (prefers-reduced-transparency: reduce) {
     .bar {
@@ -228,6 +430,6 @@
     }
   }
   @media (prefers-contrast: more) {
-    .card, .theme-toggle { border: 1px solid var(--text); }
+    .card, .theme-toggle, .switch, .choice { border: 1px solid var(--text); }
   }
 </style>

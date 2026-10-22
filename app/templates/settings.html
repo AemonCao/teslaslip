@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {% include "_theme_head.html" %}
+  <title>设置</title>
+</head>
+<body>
+<div class="sheet">
+  <header class="bar">
+    <div class="bar-row">
+      <div class="titles">
+        <p class="eyebrow">本机</p>
+        <h1>设置</h1>
+      </div>
+      <button type="button" class="theme-toggle" id="settings-back">返回</button>
+    </div>
+    <p class="sub">只保存在这台手机上</p>
+  </header>
+  <main>
+    <section class="group">
+      <h2>外观</h2>
+      <div class="card">
+        <div class="row row-stack">
+          <span>主题</span>
+          <div class="choice" data-choice="theme" role="group" aria-label="主题">
+            <button type="button" data-value="system">跟随系统</button>
+            <button type="button" data-value="light">浅色</button>
+            <button type="button" data-value="dark">深色</button>
+          </div>
+        </div>
+        <div class="row row-stack">
+          <span>强调色</span>
+          <div class="swatches" data-choice="accent" role="group" aria-label="强调色">
+            <button type="button" class="swatch" data-value="blue" aria-label="蓝"></button>
+            <button type="button" class="swatch" data-value="green" aria-label="绿"></button>
+            <button type="button" class="swatch" data-value="orange" aria-label="橙"></button>
+            <button type="button" class="swatch" data-value="purple" aria-label="紫"></button>
+          </div>
+        </div>
+        <div class="row row-stack">
+          <span>文字</span>
+          <div class="choice" data-choice="text" role="group" aria-label="文字">
+            <button type="button" data-value="standard">标准</button>
+            <button type="button" data-value="large">大</button>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="group">
+      <h2>地图</h2>
+      <div class="card">
+        <div class="row">
+          <span>显示地图</span>
+          <button type="button" class="switch" data-switch="map" aria-pressed="true">开</button>
+        </div>
+        <div class="row row-stack">
+          <span>高度</span>
+          <div class="choice" data-choice="mapHeight" role="group" aria-label="地图高度">
+            <button type="button" data-value="compact">紧凑</button>
+            <button type="button" data-value="standard">标准</button>
+            <button type="button" data-value="tall">高</button>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="group">
+      <h2>出门页</h2>
+      <div class="card">
+        <div class="row"><span>驾驶</span><button type="button" class="switch" data-switch="section:driving" aria-pressed="true">开</button></div>
+        <div class="row"><span>续航</span><button type="button" class="switch" data-switch="section:range" aria-pressed="true">开</button></div>
+        <div class="row"><span>里程表</span><button type="button" class="switch" data-switch="section:odometer" aria-pressed="true">开</button></div>
+        <div class="row"><span>环境</span><button type="button" class="switch" data-switch="section:environment" aria-pressed="true">开</button></div>
+        <div class="row"><span>车辆</span><button type="button" class="switch" data-switch="section:vehicle" aria-pressed="true">开</button></div>
+        <div class="row"><span>分段</span><button type="button" class="switch" data-switch="section:segments" aria-pressed="true">开</button></div>
+        <div class="row"><span>导航目的地</span><button type="button" class="switch" data-switch="section:destination" aria-pressed="true">开</button></div>
+      </div>
+    </section>
+    <section class="group">
+      <h2>续航</h2>
+      <div class="card">
+        <div class="row row-stack">
+          <span>口径</span>
+          <div class="choice" data-choice="rangeMode" role="group" aria-label="续航口径">
+            <button type="button" data-value="rated">额定</button>
+            <button type="button" data-value="ideal">理想</button>
+            <button type="button" data-value="both">都显示</button>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="group">
+      <h2>充电页</h2>
+      <div class="card">
+        <div class="row">
+          <span>采样明细</span>
+          <button type="button" class="switch" data-switch="chargeSamples" aria-pressed="true">开</button>
+        </div>
+      </div>
+    </section>
+    <section class="group">
+      <div class="card">
+        <button type="button" class="row reset" id="settings-reset">恢复默认</button>
+      </div>
+    </section>
+  </main>
+</div>
+<script>
+(function () {
+  var ui = window.teslaslipUI;
+  var prefs = ui.read();
+
+  function paint() {
+    var groups = document.querySelectorAll("[data-choice]");
+    for (var i = 0; i < groups.length; i++) {
+      var group = groups[i];
+      var value = prefs[group.getAttribute("data-choice")];
+      var buttons = group.querySelectorAll("[data-value]");
+      for (var j = 0; j < buttons.length; j++) {
+        buttons[j].setAttribute("aria-pressed", buttons[j].getAttribute("data-value") === value ? "true" : "false");
+      }
+    }
+    var switches = document.querySelectorAll("[data-switch]");
+    for (var k = 0; k < switches.length; k++) {
+      var btn = switches[k];
+      var key = btn.getAttribute("data-switch");
+      var on = key.indexOf("section:") === 0 ? prefs.sections[key.slice(8)] : prefs[key];
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+      btn.textContent = on ? "开" : "关";
+    }
+  }
+
+  function commit() {
+    prefs = ui.save(prefs);
+    paint();
+  }
+
+  var choiceGroups = document.querySelectorAll("[data-choice]");
+  for (var a = 0; a < choiceGroups.length; a++) {
+    choiceGroups[a].addEventListener("click", function (event) {
+      var button = event.target.closest("[data-value]");
+      if (!button || !this.contains(button)) return;
+      prefs[this.getAttribute("data-choice")] = button.getAttribute("data-value");
+      commit();
+    });
+  }
+  var switchButtons = document.querySelectorAll("[data-switch]");
+  for (var b = 0; b < switchButtons.length; b++) {
+    switchButtons[b].addEventListener("click", function () {
+      var key = this.getAttribute("data-switch");
+      if (key.indexOf("section:") === 0) {
+        var name = key.slice(8);
+        prefs.sections[name] = !prefs.sections[name];
+      } else {
+        prefs[key] = !prefs[key];
+      }
+      commit();
+    });
+  }
+  document.getElementById("settings-reset").addEventListener("click", function () {
+    prefs = ui.defaults();
+    commit();
+  });
+  document.getElementById("settings-back").addEventListener("click", function () {
+    history.back();
+  });
+  paint();
+})();
+</script>
+</body>
+</html>

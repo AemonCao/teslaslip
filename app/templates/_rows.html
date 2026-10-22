@@ -5,7 +5,7 @@
 {% macro rows(stats, labels) -%}
   {%- for label in labels -%}
     {%- for stat in stats if stat.label == label -%}
-    <div class="row"><span>{{ stat.label }}</span><span class="value">{{ stat.value }}</span></div>
+    <div class="row"{% if "额定" in label %} data-range="rated"{% elif "理想" in label %} data-range="ideal"{% endif %}><span>{{ stat.label }}</span><span class="value">{{ stat.value }}</span></div>
     {%- endfor -%}
   {%- endfor -%}
 {%- endmacro %}

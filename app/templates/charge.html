@@ -6,11 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   {% include "_theme_head.html" %}
   <title>{{ v.title }}</title>
-  <style>
-    #map { height: 220px; }
-  </style>
 </head>
-<body>
+<body data-page="charge">
 <div class="sheet">
   <header class="bar">
     <div class="bar-row">
@@ -27,28 +24,44 @@
       <p class="hero-metric">{{ value(v.stats, "加入电量") }}</p>
       <p class="hero-meta">{{ value(v.stats, "时长") }} · 电量 {{ value(v.stats, "起点电量") }} → {{ value(v.stats, "结束电量") }}</p>
     </section>
-    <section class="card map-card">
+    <section class="card map-card" data-section="map">
       {% if v.amap_key %}
-        <div id="map"></div>
+        <div id="map" data-amap-src="{{ v.amap_src | safe }}"></div>
         <script id="charge-point" type="application/json">{{ v.point_json | safe }}</script>
         {% if v.show_security %}
         <script>window._AMapSecurityConfig = {securityJsCode: {{ v.security_js | safe }}};</script>
         {% endif %}
-        <script src="{{ v.amap_src | safe }}"></script>
         <script>
-          const point = JSON.parse(document.getElementById("charge-point").textContent);
-          function amapStyle() {
-            return document.documentElement.getAttribute("data-theme") === "dark"
-              ? "amap://styles/dark"
-              : "amap://styles/normal";
-          }
-          if (point) {
-            const map = new AMap.Map("map", {viewMode: "2D", zoom: 15, center: point.path, mapStyle: amapStyle()});
-            map.add(new AMap.Marker({position: point.path}));
-            document.addEventListener("teslaslip-theme", function () {
-              map.setMapStyle(amapStyle());
-            });
-          }
+          (function () {
+            var started = false;
+            function shown() {
+              return document.documentElement.getAttribute("data-map") !== "off";
+            }
+            function amapStyle() {
+              return document.documentElement.getAttribute("data-theme") === "dark"
+                ? "amap://styles/dark"
+                : "amap://styles/normal";
+            }
+            function boot() {
+              const point = JSON.parse(document.getElementById("charge-point").textContent);
+              if (!point) return;
+              const map = new AMap.Map("map", {viewMode: "2D", zoom: 15, center: point.path, mapStyle: amapStyle()});
+              map.add(new AMap.Marker({position: point.path}));
+              document.addEventListener("teslaslip-theme", function () {
+                map.setMapStyle(amapStyle());
+              });
+            }
+            function start() {
+              if (started || !shown()) return;
+              started = true;
+              var script = document.createElement("script");
+              script.src = document.getElementById("map").getAttribute("data-amap-src");
+              script.onload = boot;
+              document.head.appendChild(script);
+            }
+            start();
+            document.addEventListener("teslaslip-theme", start);
+          })();
         </script>
       {% else %}
         <p class="note">未配置高德 Key</p>
@@ -67,7 +80,7 @@
         {{ rows(v.stats, ["开始", "结束", "充电消耗", "费用", "起点额定续航", "终点额定续航", "起点理想续航", "终点理想续航", "车外温度"]) }}
       </div>
     </section>
-    <section class="group">
+    <section class="group" data-section="samples">
       <h2>采样</h2>
       <div class="card">
         {% if v.sample_count == 0 %}

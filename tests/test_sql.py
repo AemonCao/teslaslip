@@ -1,13 +1,16 @@
 import re
 import sqlite3
 
+from app.models import Car
 from app.teslamate import (
     ALL_SQL,
+    CAR_SQL,
     CHARGE_BY_ID_SQL,
     CHARGE_SAMPLES_SQL,
     MAX_ENDED_DRIVE_SQL,
     POSITIONS_SQL,
     assert_select_only,
+    car_from_row,
     positions_query_is_bounded,
 )
 
@@ -118,6 +121,14 @@ def test_shipped_sql_is_select_only_and_positions_are_bounded():
         assert_select_only(sql)
     assert positions_query_is_bounded()
     assert "count(*)" not in POSITIONS_SQL.lower()
+
+
+def test_car_query_reads_model_without_vin():
+    compact = " ".join(CAR_SQL.lower().split())
+    assert compact.startswith("select model, marketing_name from cars where id = %(car_id)s")
+    assert "vin" not in compact
+    assert car_from_row({"model": " 3 ", "marketing_name": " SR+ "}) == Car(model="3", marketing_name="SR+")
+    assert car_from_row({"model": "", "marketing_name": None}).model is None
 
 
 def test_position_query_uses_drive_id_and_time_window():

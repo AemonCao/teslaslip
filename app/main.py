@@ -21,6 +21,14 @@ NOT_FOUND = "未找到"
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
 
+def _lookup_car(runtime: Runtime):
+    try:
+        return runtime.teslamate.car(runtime.settings.car_id)
+    except Exception as exc:
+        log_event("车辆型号读取失败", error_type=type(exc).__name__)
+        return None
+
+
 def create_app(runtime: Runtime) -> FastAPI:
     @contextlib.asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -79,7 +87,7 @@ def create_app(runtime: Runtime) -> FastAPI:
         tracks = [
             runtime.teslamate.track(drive.id, drive.start_date, drive.end_date) for drive in ordered
         ]
-        page = build_drive_page(ordered, tracks, link.destination, runtime.settings)
+        page = build_drive_page(ordered, tracks, link.destination, runtime.settings, _lookup_car(runtime))
         return templates.TemplateResponse(request, "drive.html", {"v": page})
 
     @app.get("/c/{token}", response_class=HTMLResponse)

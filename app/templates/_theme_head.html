@@ -325,6 +325,81 @@
   .seg-top span:first-child { min-width: 0; overflow-wrap: break-word; }
   .seg-meta { margin: 0; color: var(--secondary); font-size: 0.8125rem; }
   .note { margin: 0; padding: 14px 16px; font-size: 0.875rem; }
+  .tires { position: relative; padding-bottom: 12px; }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .tire-kicker {
+    margin: 12px 16px 0;
+    color: var(--secondary);
+    font-size: 0.8125rem;
+  }
+  .tire-board {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-areas:
+      "fl car fr"
+      "rl car rr";
+    align-items: center;
+    column-gap: 8px;
+    padding: 8px 12px 0;
+  }
+  .tire-read { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .tire-read[data-pos="fl"] { grid-area: fl; align-items: flex-end; text-align: right; }
+  .tire-read[data-pos="fr"] { grid-area: fr; align-items: flex-start; text-align: left; }
+  .tire-read[data-pos="rl"] { grid-area: rl; align-items: flex-end; text-align: right; }
+  .tire-read[data-pos="rr"] { grid-area: rr; align-items: flex-start; text-align: left; }
+  .tire-value {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    font-size: 1.125rem;
+    letter-spacing: -0.02em;
+  }
+  .tire-meta { color: var(--secondary); font-size: 0.75rem; }
+  .car-wrap { grid-area: car; grid-row: 1 / span 2; width: 9.5rem; }
+  .tires svg {
+    width: 100%;
+    height: auto;
+    background: transparent;
+  }
+  .tires .body { fill: var(--surface); stroke: var(--text); stroke-width: 3; }
+  .tires .glass { fill: var(--card); stroke: var(--separator); stroke-width: 2; }
+  .tires .mirror { fill: var(--surface); stroke: var(--text); stroke-width: 2; }
+  .tires .wheel { fill: var(--text); }
+  .tires .hub { fill: var(--card); }
+  .tires .lamp, .tires .crease, .tires .bed {
+    fill: none;
+    stroke: var(--text);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+  }
+  .tires .bed { stroke-width: 2; }
+  .car-label {
+    margin: 2px 16px 0;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.875rem;
+  }
+  .tire-empty {
+    margin: 4px 16px 0;
+    text-align: center;
+    color: var(--secondary);
+    font-size: 0.875rem;
+  }
+  .tires + .row {
+    background-image: linear-gradient(var(--separator), var(--separator));
+    background-repeat: no-repeat;
+    background-size: calc(100% - 16px) 1px;
+    background-position: 16px 0;
+  }
   .footnote { margin: 22px 16px 0; }
   .footnote-value { margin: 4px 16px 0; overflow-wrap: break-word; }
   .theme-toggle {

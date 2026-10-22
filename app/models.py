@@ -32,6 +32,12 @@ class Address:
 
 
 @dataclass
+class Car:
+    model: str | None = None
+    marketing_name: str | None = None
+
+
+@dataclass
 class Drive:
     id: int
     start_date: datetime

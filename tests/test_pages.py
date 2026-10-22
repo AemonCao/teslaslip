@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from app.geo import wgs84_to_gcj02
-from app.models import Address, ChargeSample, TrackPoint
+from app.models import Address, Car, ChargeSample, TrackPoint
 from app.pages import build_charge_page, build_drive_page, expiry_from, link_expired
 from tests.fakes import STREET, T0, make_charge, make_drive, make_settings
 
@@ -102,11 +102,39 @@ def test_missing_tires_message_and_ttl(tmp_path):
         settings,
     )
     assert page["tire_text"] == "本段没有胎压采样"
+    assert page["tire_missing"] is True
+    assert page["car_shape"] == "generic"
+    assert page["car_label"] is None
+    assert [corner.value for corner in page["tires"]] == ["—", "—", "—", "—"]
     assert expiry_from(T0, 0) is None
     assert link_expired(None, T0 + timedelta(days=2)) is False
     expires = expiry_from(T0, 1)
     assert link_expired(expires, T0 + timedelta(days=1)) is False
     assert link_expired(expires, T0 + timedelta(days=1, seconds=1)) is True
+
+
+def test_known_tesla_models_pick_a_silhouette(tmp_path):
+    settings = make_settings(tmp_path)
+    row = make_drive(1, T0, T0 + timedelta(minutes=5))
+    points = [[TrackPoint(date=row.start_date, latitude=31.2, longitude=121.4, tpms_fl=2.9)]]
+    expected = {
+        "3": ("model3", "Model 3 SR+"),
+        "Y": ("modely", "Model Y"),
+        "s": ("models", "Model S"),
+        "X": ("modelx", "Model X"),
+        "Cybertruck": ("cybertruck", "Cybertruck"),
+    }
+    for model, (shape, label) in expected.items():
+        marketing = "SR+" if model == "3" else None
+        page = build_drive_page([row], points, None, settings, Car(model=model, marketing_name=marketing))
+        assert page["car_shape"] == shape
+        assert page["car_label"] == label
+    unknown = build_drive_page([row], points, None, settings, Car(model="roadster", marketing_name="Founders"))
+    assert unknown["car_shape"] == "generic"
+    assert unknown["car_label"] is None
+    blank = build_drive_page([row], points, None, settings, Car(model="  ", marketing_name="SR+"))
+    assert blank["car_shape"] == "generic"
+    assert blank["car_label"] is None
 
 
 def test_charge_page_hides_null_cost_and_marks_sample(tmp_path):

@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any
 
 from app.formatutil import as_naive_utc, as_utc
-from app.models import Address, Charge, ChargeSample, Drive, TrackPoint
+from app.models import Address, Car, Charge, ChargeSample, Drive, TrackPoint
 
 READONLY_OPTIONS = "-c statement_timeout=15000 -c default_transaction_read_only=on"
 
@@ -216,6 +216,12 @@ ORDER BY date ASC
 
 SELECT_ONE_SQL = "SELECT 1"
 
+CAR_SQL = """
+SELECT model, marketing_name
+FROM cars
+WHERE id = %(car_id)s
+"""
+
 ALL_SQL = (
     MAX_ENDED_DRIVE_SQL,
     MAX_ENDED_CHARGE_SQL,
@@ -226,6 +232,7 @@ ALL_SQL = (
     CHARGES_AFTER_SQL,
     CHARGE_BY_ID_SQL,
     CHARGE_SAMPLES_SQL,
+    CAR_SQL,
     SELECT_ONE_SQL,
 )
 
@@ -373,6 +380,13 @@ def charge_from_row(row: dict[str, Any], samples: list[ChargeSample]) -> Charge:
     )
 
 
+def car_from_row(row: dict[str, Any]) -> Car:
+    return Car(
+        model=_text(row.get("model")),
+        marketing_name=_text(row.get("marketing_name")),
+    )
+
+
 def sample_from_row(row: dict[str, Any]) -> ChargeSample:
     return ChargeSample(
         date=_dt(row["date"]),
@@ -391,6 +405,12 @@ class PostgresTeslaMate:
     def __init__(self, database_url: str) -> None:
         self.database_url = database_url
         self.track_calls = 0
+
+    def car(self, car_id: int) -> Car | None:
+        rows = self._fetch(CAR_SQL, {"car_id": car_id})
+        if not rows:
+            return None
+        return car_from_row(rows[0])
 
     def ping(self) -> bool:
         try:

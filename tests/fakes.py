@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from app.bark import BarkError
 from app.config import Settings
 from app.db import Store
-from app.models import Address, Charge, ChargeSample, Drive, TrackPoint
+from app.models import Address, Car, Charge, ChargeSample, Drive, TrackPoint
 from app.config import secret_values
 from app.redact import SecretVault
 from app.mqtt import topic_map
@@ -49,10 +49,15 @@ class MemoryTeslaMate:
         self.drives: list[Drive] = []
         self.charges: list[Charge] = []
         self.tracks: dict[int, list[TrackPoint]] = {}
+        self.profile: Car | None = None
         self.track_calls = 0
         self.query_calls = 0
         self.ping_ok = True
         self.write_attempts: list[str] = []
+
+    def car(self, car_id: int) -> Car | None:
+        self.query_calls += 1
+        return self.profile
 
     def ping(self) -> bool:
         return self.ping_ok

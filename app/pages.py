@@ -11,7 +11,7 @@ from app.charge import summarize_samples
 from app.config import Settings
 from app.formatutil import fmt_elapsed, fmt_local, fmt_minutes, fmt_number, fmt_optional_int, fmt_signed
 from app.geo import downsample, wgs84_to_gcj02
-from app.models import Charge, Drive, TrackPoint
+from app.models import Car, Charge, Drive, TrackPoint
 from app.outing import is_shuffle
 
 MAP_POINT_LIMIT = 2000
@@ -45,11 +45,28 @@ class Stat:
     value: str
 
 
+@dataclass
+class TireCorner:
+    key: str
+    label: str
+    value: str
+
+
+_CAR_SHAPES = {
+    "3": ("model3", "Model 3"),
+    "y": ("modely", "Model Y"),
+    "s": ("models", "Model S"),
+    "x": ("modelx", "Model X"),
+    "cybertruck": ("cybertruck", "Cybertruck"),
+}
+
+
 def build_drive_page(
     drives: list[Drive],
     tracks: list[list[TrackPoint]],
     destination: str | None,
     settings: Settings,
+    car: Car | None = None,
 ) -> dict[str, object]:
     pairs = sorted(zip(drives, tracks, strict=True), key=lambda item: (item[0].end_date, item[0].id))
     ordered = [drive for drive, _points in pairs]
@@ -61,6 +78,7 @@ def build_drive_page(
     start_battery = _nearby_battery(full_lists[0] if full_lists else [], first=True)
     end_battery = _nearby_battery(full_lists[-1] if full_lists else [], first=False)
     tires = _last_tires(flat_points)
+    car_shape, car_label = _car_view(car)
     climate = _climate(flat_points)
     distance = _sum(drive.distance_km for drive in ordered)
     driving = _sum(drive.duration_min for drive in ordered)
@@ -135,6 +153,10 @@ def build_drive_page(
         "show_security": bool(settings.amap_security_js_code),
         "destination": destination or None,
         "tire_text": _tire_text(tires),
+        "tires": _tire_corners(tires),
+        "tire_missing": all(value is None for value in tires.values()),
+        "car_shape": car_shape,
+        "car_label": car_label,
         "climate_lines": climate,
         "svg_width": 1000,
         "svg_height": 700,
@@ -295,6 +317,23 @@ def _tire_text(tires: dict[str, float | None]) -> str:
     names = (("fl", "左前"), ("fr", "右前"), ("rl", "左后"), ("rr", "右后"))
     parts = [f"{label} {fmt_number(tires[key], 2)} bar" if tires[key] is not None else f"{label} —" for key, label in names]
     return " · ".join(parts)
+
+
+def _tire_corners(tires: dict[str, float | None]) -> list[TireCorner]:
+    names = (("fl", "左前"), ("fr", "右前"), ("rl", "左后"), ("rr", "右后"))
+    return [TireCorner(key=key, label=label, value=fmt_number(tires[key], 2)) for key, label in names]
+
+
+def _car_view(car: Car | None) -> tuple[str, str | None]:
+    model = "" if car is None or not car.model else car.model.strip().lower()
+    found = _CAR_SHAPES.get(model)
+    if found is None:
+        return "generic", None
+    shape, title = found
+    marketing = "" if car is None or not car.marketing_name else car.marketing_name.strip()
+    if marketing:
+        return shape, f"{title} {marketing}"
+    return shape, title
 
 
 def _climate(points: list[TrackPoint]) -> list[str]:

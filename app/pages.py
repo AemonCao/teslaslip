@@ -261,9 +261,10 @@ def _project(segments: list[MapSegment]) -> None:
         rendered = [xy(lat, lng) for lat, lng in segment.latlng]
         segment.svg_points = " ".join(f"{x:.1f},{y:.1f}" for x, y in rendered)
         if segment.label and rendered:
-            mid = rendered[len(rendered) // 2]
-            segment.label_x = mid[0]
-            segment.label_y = mid[1]
+            start = rendered[0]
+            end = rendered[-1]
+            segment.label_x = (start[0] + end[0]) / 2
+            segment.label_y = (start[1] + end[1]) / 2
 
 
 def _nearby_battery(points: list[TrackPoint], *, first: bool) -> tuple[int | None, int | None]:

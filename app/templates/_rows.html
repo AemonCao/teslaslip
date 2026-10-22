@@ -1,0 +1,11 @@
+{% macro value(stats, label) -%}
+  {%- for stat in stats if stat.label == label -%}{{ stat.value }}{%- endfor -%}
+{%- endmacro %}
+
+{% macro rows(stats, labels) -%}
+  {%- for label in labels -%}
+    {%- for stat in stats if stat.label == label -%}
+    <div class="row"><span>{{ stat.label }}</span><span class="value">{{ stat.value }}</span></div>
+    {%- endfor -%}
+  {%- endfor -%}
+{%- endmacro %}

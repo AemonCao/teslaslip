@@ -1,73 +1,83 @@
+{% from "_rows.html" import rows, value %}
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   {% include "_theme_head.html" %}
-  <title>充电</title>
+  <title>{{ v.title }}</title>
   <style>
-    svg { width: 100%; height: 180px; }
-    #map { width: 100%; height: 220px; border-radius: 10px; }
+    #map { height: 220px; }
   </style>
 </head>
 <body>
-<main>
-  <div class="top">
-    <div class="titles">
-      <h1>{{ v.title }}</h1>
-      <p class="muted">{{ v.address }}</p>
+<div class="sheet">
+  <header class="bar">
+    <div class="bar-row">
+      <div class="titles">
+        <p class="eyebrow">充电</p>
+        <h1>{{ v.title }}</h1>
+      </div>
+      {% include "_theme_toggle.html" %}
     </div>
-    {% include "_theme_toggle.html" %}
-  </div>
-  <section class="card">
-    {% if v.amap_key %}
-      <div id="map"></div>
-      <script id="charge-point" type="application/json">{{ v.point_json | safe }}</script>
-      {% if v.show_security %}
-      <script>window._AMapSecurityConfig = {securityJsCode: {{ v.security_js | safe }}};</script>
-      {% endif %}
-      <script src="{{ v.amap_src | safe }}"></script>
-      <script>
-        const point = JSON.parse(document.getElementById("charge-point").textContent);
-        function amapStyle() {
-          return document.documentElement.getAttribute("data-theme") === "dark"
-            ? "amap://styles/dark"
-            : "amap://styles/normal";
-        }
-        if (point) {
-          const map = new AMap.Map("map", {viewMode: "2D", zoom: 15, center: point.path, mapStyle: amapStyle()});
-          map.add(new AMap.Marker({position: point.path}));
-          document.addEventListener("teslaslip-theme", function () {
-            map.setMapStyle(amapStyle());
-          });
-        }
-      </script>
-    {% else %}
-      <p class="note">未配置高德 Key</p>
-      {% if v.point %}
-      <svg viewBox="0 0 320 180" role="img" aria-label="充电位置">
-        <circle data-kind="charge-point" cx="160" cy="90" r="8"></circle>
-      </svg>
+    <p class="sub">{{ v.address }}</p>
+  </header>
+  <main>
+    <section class="hero">
+      <p class="hero-metric">{{ value(v.stats, "加入电量") }}</p>
+      <p class="hero-meta">{{ value(v.stats, "时长") }} · 电量 {{ value(v.stats, "起点电量") }} → {{ value(v.stats, "结束电量") }}</p>
+    </section>
+    <section class="card map-card">
+      {% if v.amap_key %}
+        <div id="map"></div>
+        <script id="charge-point" type="application/json">{{ v.point_json | safe }}</script>
+        {% if v.show_security %}
+        <script>window._AMapSecurityConfig = {securityJsCode: {{ v.security_js | safe }}};</script>
+        {% endif %}
+        <script src="{{ v.amap_src | safe }}"></script>
+        <script>
+          const point = JSON.parse(document.getElementById("charge-point").textContent);
+          function amapStyle() {
+            return document.documentElement.getAttribute("data-theme") === "dark"
+              ? "amap://styles/dark"
+              : "amap://styles/normal";
+          }
+          if (point) {
+            const map = new AMap.Map("map", {viewMode: "2D", zoom: 15, center: point.path, mapStyle: amapStyle()});
+            map.add(new AMap.Marker({position: point.path}));
+            document.addEventListener("teslaslip-theme", function () {
+              map.setMapStyle(amapStyle());
+            });
+          }
+        </script>
       {% else %}
-      <p>没有位置</p>
+        <p class="note">未配置高德 Key</p>
+        {% if v.point %}
+        <svg viewBox="0 0 320 180" role="img" aria-label="充电位置">
+          <circle data-kind="charge-point" cx="160" cy="90" r="8"></circle>
+        </svg>
+        {% else %}
+        <p class="note">没有位置</p>
+        {% endif %}
       {% endif %}
-    {% endif %}
-  </section>
-  <section class="card">
-    {% for stat in v.stats %}
-    <div class="row"><span>{{ stat.label }}</span><span>{{ stat.value }}</span></div>
-    {% endfor %}
-  </section>
-  <section class="card">
-    <h2>充电采样</h2>
-    {% if v.sample_count == 0 %}
-    <p>没有充电采样</p>
-    {% else %}
-    {% for stat in v.charger %}
-    <div class="row"><span>{{ stat.label }}</span><span>{{ stat.value }}</span></div>
-    {% endfor %}
-    {% endif %}
-  </section>
-</main>
+    </section>
+    <section class="group">
+      <h2>充电</h2>
+      <div class="card">
+        {{ rows(v.stats, ["开始", "结束", "充电消耗", "费用", "起点额定续航", "终点额定续航", "起点理想续航", "终点理想续航", "车外温度"]) }}
+      </div>
+    </section>
+    <section class="group">
+      <h2>采样</h2>
+      <div class="card">
+        {% if v.sample_count == 0 %}
+        <p class="note">没有充电采样</p>
+        {% else %}
+        {{ rows(v.charger, ["充电器功率", "电压", "电流", "相数", "线缆", "快充", "快充品牌", "快充类型"]) }}
+        {% endif %}
+      </div>
+    </section>
+  </main>
+</div>
 </body>
 </html>

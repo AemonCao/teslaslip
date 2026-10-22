@@ -156,7 +156,7 @@ def test_05_shuffle_inside_outing_stays_on_the_page(tmp_path):
         assert response.status_code == 200
         assert response.text.count('data-kind="drive"') == 3
         assert response.text.count('data-kind="parking"') == 2
-        assert ">是<" in response.text
+        assert "挪车 是" in response.text
 
     run(body())
 

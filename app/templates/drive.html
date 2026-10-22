@@ -1,149 +1,190 @@
+{% from "_rows.html" import rows %}
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   {% include "_theme_head.html" %}
-  <title>出门</title>
+  {% set start_name = v.start_geofence %}
+  {% set end_name = v.end_geofence %}
+  {% set heading = namespace(text="出门") %}
+  {% if start_name != "—" and end_name != "—" %}
+    {% set heading.text = start_name ~ " → " ~ end_name %}
+  {% elif start_name != "—" %}
+    {% set heading.text = start_name %}
+  {% elif end_name != "—" %}
+    {% set heading.text = end_name %}
+  {% endif %}
+  <title>{{ heading.text }}</title>
   <style>
-    .muted { margin: 0 0 12px; }
-    .hero { font-size: 1.7rem; font-weight: 650; margin: 0; }
-    .note { margin: 0 0 8px; }
-    svg { width: 100%; height: auto; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
-    th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
-    .scroll { overflow-x: auto; }
-    #map { width: 100%; height: 320px; border-radius: 10px; }
-    .dest { color: var(--dest); }
+    #map { height: 300px; }
   </style>
 </head>
 <body>
-<main>
-  <div class="top">
-    <div class="titles">
-      <h1>出门</h1>
-      <p class="muted">{{ v.start_text }} – {{ v.end_text }}</p>
+<div class="sheet">
+  <header class="bar">
+    <div class="bar-row">
+      <div class="titles">
+        <p class="eyebrow">出门</p>
+        <h1>{{ heading.text }}</h1>
+      </div>
+      {% include "_theme_toggle.html" %}
     </div>
-    {% include "_theme_toggle.html" %}
-  </div>
-  <section class="card">
-    <p class="hero">{{ v.distance_text }}</p>
-    <p class="muted">驾驶 {{ v.driving_text }} · 出门 {{ v.elapsed_text }}</p>
-    <div class="row"><span>起点围栏</span><span>{{ v.start_geofence }}</span></div>
-    <div class="row"><span>终点围栏</span><span>{{ v.end_geofence }}</span></div>
-    <div class="row"><span>起点地址</span><span>{{ v.start_address }}</span></div>
-    <div class="row"><span>终点地址</span><span>{{ v.end_address }}</span></div>
-  </section>
-  <section class="card">
-    {% if v.amap_key %}
-      <div id="map"></div>
-      <script id="map-data" type="application/json">{{ v.map_json | safe }}</script>
-      {% if v.show_security %}
-      <script>window._AMapSecurityConfig = {securityJsCode: {{ v.security_js | safe }}};</script>
-      {% endif %}
-      <script src="{{ v.amap_src | safe }}"></script>
-      <script>
-        const segments = JSON.parse(document.getElementById("map-data").textContent);
-        function amapStyle() {
-          return document.documentElement.getAttribute("data-theme") === "dark"
-            ? "amap://styles/dark"
-            : "amap://styles/normal";
-        }
-        function labelStyle() {
-          const dark = document.documentElement.getAttribute("data-theme") === "dark";
-          return {
-            color: dark ? "#d0d5dd" : "#344054",
-            background: dark ? "#1c212b" : "#fff",
-            border: "0",
-            "font-size": "12px"
-          };
-        }
-        const map = new AMap.Map("map", {viewMode: "2D", mapStyle: amapStyle()});
-        const overlays = [];
-        const labels = [];
-        for (const segment of segments) {
-          if (!segment.path.length) continue;
-          overlays.push(new AMap.Polyline({
-            path: segment.path,
-            strokeColor: segment.dashed ? "#667085" : "#175cd3",
-            strokeOpacity: 1,
-            strokeWeight: segment.dashed ? 3 : 5,
-            strokeStyle: segment.dashed ? "dashed" : "solid"
-          }));
-          if (segment.dashed && segment.label) {
-            const mid = segment.path[Math.floor(segment.path.length / 2)];
-            const label = new AMap.Text({text: segment.label, position: mid, style: labelStyle()});
-            labels.push(label);
-            overlays.push(label);
+    <p class="sub">{{ v.start_text }} – {{ v.end_text }}</p>
+  </header>
+  <main>
+    <section class="hero">
+      <p class="hero-metric">{{ v.distance_text }}</p>
+      <p class="hero-meta">驾驶 {{ v.driving_text }} · 出门 {{ v.elapsed_text }}</p>
+      <div class="route">
+        <div class="stop">
+          <p class="kicker">起点</p>
+          <p class="place">{{ v.start_geofence }}</p>
+          <p class="addr">{{ v.start_address }}</p>
+        </div>
+        <div class="stop">
+          <p class="kicker">终点</p>
+          <p class="place">{{ v.end_geofence }}</p>
+          <p class="addr">{{ v.end_address }}</p>
+        </div>
+      </div>
+    </section>
+    <section class="card map-card">
+      {% if v.amap_key %}
+        <div id="map"></div>
+        <script id="map-data" type="application/json">{{ v.map_json | safe }}</script>
+        {% if v.show_security %}
+        <script>window._AMapSecurityConfig = {securityJsCode: {{ v.security_js | safe }}};</script>
+        {% endif %}
+        <script src="{{ v.amap_src | safe }}"></script>
+        <script>
+          const segments = JSON.parse(document.getElementById("map-data").textContent);
+          function dark() {
+            return document.documentElement.getAttribute("data-theme") === "dark";
           }
-        }
-        map.add(overlays);
-        if (overlays.length) map.setFitView();
-        document.addEventListener("teslaslip-theme", function () {
-          map.setMapStyle(amapStyle());
-          const style = labelStyle();
-          for (const label of labels) label.setStyle(style);
-        });
-      </script>
-    {% else %}
-      <p class="note">未配置高德 Key</p>
-      {% if v.has_track %}
-      <svg viewBox="0 0 {{ v.svg_width }} {{ v.svg_height }}" role="img" aria-label="行程折线">
-        {% for segment in v.map_segments %}
-          {% if segment.svg_points %}
-          <polyline data-kind="{{ segment.kind }}" data-dashed="{{ 1 if segment.dashed else 0 }}" points="{{ segment.svg_points }}" fill="none" stroke-width="{{ 3 if segment.dashed else 5 }}" {% if segment.dashed %}stroke-dasharray="10 8"{% endif %}></polyline>
-          {% if segment.label %}
-          <text data-label="parking" x="{{ segment.label_x }}" y="{{ segment.label_y }}" font-size="28">{{ segment.label }}</text>
-          {% endif %}
-          {% endif %}
-        {% endfor %}
-      </svg>
+          function amapStyle() {
+            return dark() ? "amap://styles/dark" : "amap://styles/normal";
+          }
+          function labelStyle() {
+            return {
+              color: dark() ? "#f5f5f7" : "#1c1c1e",
+              background: dark() ? "rgba(28,28,30,0.92)" : "rgba(255,255,255,0.92)",
+              border: "0",
+              "font-size": "12px",
+              "border-radius": "6px",
+              padding: "2px 6px"
+            };
+          }
+          function lineColor(dashed) {
+            if (dashed) return dark() ? "#98989d" : "#8e8e93";
+            return dark() ? "#0a84ff" : "#007aff";
+          }
+          const map = new AMap.Map("map", {viewMode: "2D", mapStyle: amapStyle()});
+          const overlays = [];
+          const labels = [];
+          const lines = [];
+          for (const segment of segments) {
+            if (!segment.path.length) continue;
+            const line = new AMap.Polyline({
+              path: segment.path,
+              strokeColor: lineColor(segment.dashed),
+              strokeOpacity: 1,
+              strokeWeight: segment.dashed ? 3 : 5,
+              strokeStyle: segment.dashed ? "dashed" : "solid"
+            });
+            lines.push({line: line, dashed: segment.dashed});
+            overlays.push(line);
+            if (segment.dashed && segment.label) {
+              const first = segment.path[0];
+              const last = segment.path[segment.path.length - 1];
+              const mid = [(first[0] + last[0]) / 2, (first[1] + last[1]) / 2];
+              const label = new AMap.Text({text: segment.label, position: mid, style: labelStyle()});
+              labels.push(label);
+              overlays.push(label);
+            }
+          }
+          map.add(overlays);
+          if (overlays.length) map.setFitView();
+          document.addEventListener("teslaslip-theme", function () {
+            map.setMapStyle(amapStyle());
+            const style = labelStyle();
+            for (const label of labels) label.setStyle(style);
+            for (const item of lines) item.line.setOptions({strokeColor: lineColor(item.dashed)});
+          });
+        </script>
       {% else %}
-      <p>没有轨迹点</p>
+        <p class="note">未配置高德 Key</p>
+        {% if v.has_track %}
+        <svg viewBox="0 0 {{ v.svg_width }} {{ v.svg_height }}" role="img" aria-label="行程折线">
+          {% for segment in v.map_segments %}
+            {% if segment.svg_points %}
+            <polyline data-kind="{{ segment.kind }}" data-dashed="{{ 1 if segment.dashed else 0 }}" points="{{ segment.svg_points }}" fill="none" stroke-width="{{ 3 if segment.dashed else 5 }}" {% if segment.dashed %}stroke-dasharray="10 8"{% endif %}></polyline>
+            {% if segment.label %}
+            <text data-label="parking" x="{{ segment.label_x }}" y="{{ segment.label_y }}" font-size="28" text-anchor="middle" dominant-baseline="middle">{{ segment.label }}</text>
+            {% endif %}
+            {% endif %}
+          {% endfor %}
+        </svg>
+        {% else %}
+        <p class="note">没有轨迹点</p>
+        {% endif %}
       {% endif %}
-    {% endif %}
-  </section>
-  <section class="card">
-    {% for stat in v.stats %}
-    <div class="row"><span>{{ stat.label }}</span><span>{{ stat.value }}</span></div>
-    {% endfor %}
-  </section>
-  <section class="card">
-    <h2>胎压</h2>
-    <p>{{ v.tire_text }}</p>
-    <h2>空调</h2>
-    {% for line in v.climate_lines %}
-    <p>{{ line }}</p>
-    {% endfor %}
-  </section>
-  {% if v.segments %}
-  <section class="card scroll">
-    <h2>分段</h2>
-    <table>
-      <thead>
-        <tr><th>时间</th><th>里程</th><th>时长</th><th>起点</th><th>终点</th><th>挪车</th></tr>
-      </thead>
-      <tbody>
-        {% for row in v.segments %}
-        <tr>
-          <td>{{ row.time_text }}</td>
-          <td>{{ row.distance_text }}</td>
-          <td>{{ row.duration_text }}</td>
-          <td>{{ row.start_text }}</td>
-          <td>{{ row.end_text }}</td>
-          <td>{{ row.shuffle_text }}</td>
-        </tr>
+    </section>
+    <section class="group">
+      <h2>驾驶</h2>
+      <div class="card">
+        {{ rows(v.stats, ["最高速度", "最大输出", "最大回收", "爬升", "下降"]) }}
+      </div>
+    </section>
+    <section class="group">
+      <h2>续航</h2>
+      <div class="card">
+        {{ rows(v.stats, ["起点额定续航", "终点额定续航", "额定续航差", "起点理想续航", "终点理想续航", "理想续航差", "起点电量", "起点可用电量", "终点电量", "终点可用电量"]) }}
+      </div>
+    </section>
+    <section class="group">
+      <h2>里程</h2>
+      <div class="card">
+        {{ rows(v.stats, ["起点里程表", "终点里程表"]) }}
+      </div>
+    </section>
+    <section class="group">
+      <h2>环境</h2>
+      <div class="card">
+        {{ rows(v.stats, ["车外温度", "车内温度"]) }}
+      </div>
+    </section>
+    <section class="group">
+      <h2>车辆</h2>
+      <div class="card">
+        <div class="row row-stack"><span>胎压</span><span class="value">{{ v.tire_text }}</span></div>
+        {% for line in v.climate_lines %}
+          {% set parts = line.split("：", 1) %}
+          <div class="row"><span>{{ parts[0] }}</span><span class="value">{{ parts[1] }}</span></div>
         {% endfor %}
-      </tbody>
-    </table>
-  </section>
-  {% endif %}
-  {% if v.destination %}
-  <section class="card">
-    <p class="dest">停车前最后一次导航目的地，可能为空或不准</p>
-    <p>{{ v.destination }}</p>
-  </section>
-  {% endif %}
-</main>
+      </div>
+    </section>
+    {% if v.segments %}
+    <section class="group">
+      <h2>分段</h2>
+      <div class="card">
+        {% for row in v.segments %}
+        <div class="seg">
+          <div class="seg-top">
+            <span>{{ row.start_text }} → {{ row.end_text }}</span>
+            <span class="value">{{ row.distance_text }}</span>
+          </div>
+          <p class="seg-meta">{{ row.time_text }} · {{ row.duration_text }} · 挪车 {{ row.shuffle_text }}</p>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+    {% if v.destination %}
+    <p class="footnote">停车前最后一次导航目的地，可能为空或不准</p>
+    <p class="footnote-value">{{ v.destination }}</p>
+    {% endif %}
+  </main>
+</div>
 </body>
 </html>

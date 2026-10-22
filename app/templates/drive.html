@@ -66,6 +66,7 @@
           overlays.push(new AMap.Polyline({
             path: segment.path,
             strokeColor: segment.dashed ? "#667085" : "#175cd3",
+            strokeOpacity: 1,
             strokeWeight: segment.dashed ? 3 : 5,
             strokeStyle: segment.dashed ? "dashed" : "solid"
           }));

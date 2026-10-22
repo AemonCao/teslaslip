@@ -63,6 +63,7 @@ def test_drive_template_groups_fields_without_repeating_hero(tmp_path):
     assert page["driving_text"] in html
     assert page["elapsed_text"] in html
     assert page["start_text"] in html and page["end_text"] in html
+    assert 'name="format-detection" content="telephone=no"' in html
     assert "起点路1号" in html and "公司路3号" in html
     assert "停车前最后一次导航目的地，可能为空或不准" in html
     assert "朝阳路10号" in html
@@ -219,6 +220,7 @@ def test_charge_template_puts_session_in_the_hero(tmp_path):
     html = render("charge.html", page)
 
     assert "<h1>地下车库</h1>" in html
+    assert 'name="format-detection" content="telephone=no"' in html
     assert STREET in html
     assert "<h2>充电</h2>" in html
     assert "<h2>采样</h2>" in html
@@ -256,6 +258,7 @@ def test_settings_template_lists_display_controls():
         assert label in html
     assert "teslaslip-ui" in html
     assert "history.back" in html
+    assert 'name="format-detection" content="telephone=no"' in html
 
 
 def test_settings_route_returns_page_and_root_stays_missing(tmp_path):

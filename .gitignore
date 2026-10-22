@@ -8,3 +8,7 @@ __pycache__/
 *.sqlite-shm
 .mypy_cache/
 .ruff_cache/
+.agents/
+.claude/
+.grok/
+skills-lock.json

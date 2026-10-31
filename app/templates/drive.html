@@ -60,7 +60,13 @@
         <svg viewBox="0 0 {{ v.svg_width }} {{ v.svg_height }}" role="img" aria-label="行程折线">
           {% for segment in v.map_segments %}
             {% if segment.svg_points %}
+            {% if segment.speed_runs %}
+            {% for run in segment.speed_runs %}
+            <polyline data-kind="drive" data-dashed="0" points="{{ run.svg_points }}" fill="none" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"{% if run.color %} style="stroke: {{ run.color }}"{% endif %}></polyline>
+            {% endfor %}
+            {% else %}
             <polyline data-kind="{{ segment.kind }}" data-dashed="{{ 1 if segment.dashed else 0 }}" points="{{ segment.svg_points }}" fill="none" stroke-width="{{ 3 if segment.dashed else 5 }}" {% if segment.dashed %}stroke-dasharray="10 8"{% endif %}></polyline>
+            {% endif %}
             {% if segment.label %}
             <text data-label="parking" x="{{ segment.label_x }}" y="{{ segment.label_y }}" font-size="28" text-anchor="middle" dominant-baseline="middle">{{ segment.label }}</text>
             {% endif %}
@@ -71,6 +77,23 @@
         <p class="note">没有轨迹点</p>
         {% endif %}
       {% endif %}
+      <div class="speed-legend">
+        {% if v.speed_min is not none %}
+        <p class="speed-caption">速度 · 按本次行程速度范围</p>
+        <div class="speed-scale" aria-hidden="true" style="background: {% if v.speed_min == v.speed_max %}#ffff00{% else %}linear-gradient(to right, {{ v.speed_gradient }}){% endif %}"></div>
+        <div class="speed-values">
+          {% if v.speed_min == v.speed_max %}
+          <span>全程 {{ v.speed_min_text }} km/h</span>
+          {% else %}
+          <span>慢 · {{ v.speed_min_text }} km/h</span>
+          <span>快 · {{ v.speed_max_text }} km/h</span>
+          {% endif %}
+        </div>
+        {% if v.speed_missing %}<p class="speed-caption">主题色路段暂无速度数据</p>{% endif %}
+        {% else %}
+        <p class="speed-caption">暂无速度数据</p>
+        {% endif %}
+      </div>
     </section>
     <section class="group" data-section="driving">
       <h2>驾驶</h2>

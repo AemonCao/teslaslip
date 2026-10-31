@@ -79,6 +79,7 @@ class TrackPoint:
     passenger_temp: float | None = None
     front_defrost: bool | None = None
     rear_defrost: bool | None = None
+    speed: float | None = None
 
 
 @dataclass

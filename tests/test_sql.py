@@ -12,6 +12,7 @@ from app.teslamate import (
     assert_select_only,
     car_from_row,
     positions_query_is_bounded,
+    track_from_row,
 )
 
 
@@ -56,6 +57,7 @@ CREATE TABLE positions (
     date text,
     latitude real,
     longitude real,
+    speed integer,
     battery_level integer,
     usable_battery_level integer,
     tpms_pressure_fl real,
@@ -135,7 +137,7 @@ def test_position_query_uses_drive_id_and_time_window():
     conn = sqlite3.connect(":memory:")
     conn.executescript(SCHEMA)
     conn.execute(
-        "INSERT INTO positions(id, date, latitude, longitude, drive_id) VALUES (1, '2026-10-17T02:00:00+00:00', 31.2, 121.4, 7)"
+        "INSERT INTO positions(id, date, latitude, longitude, speed, drive_id) VALUES (1, '2026-10-17T02:00:00+00:00', 31.2, 121.4, 53, 7)"
     )
     conn.execute(
         "INSERT INTO positions(id, date, latitude, longitude, drive_id) VALUES (2, '2026-10-17T03:00:00+00:00', 32.2, 122.4, 7)"
@@ -155,6 +157,9 @@ def test_position_query_uses_drive_id_and_time_window():
     assert len(rows) == 1
     assert rows[0]["latitude"] == 31.2
     assert rows[0]["longitude"] == 121.4
+    assert track_from_row(rows[0]).speed == 53
+    assert track_from_row({**rows[0], "speed": None}).speed is None
+    assert track_from_row({**rows[0], "speed": 0}).speed == 0
 
 
 def test_watermark_sql_ignores_open_drive_even_if_id_is_larger():

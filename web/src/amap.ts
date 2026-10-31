@@ -33,6 +33,7 @@ export interface MapSegment {
   dashed: boolean;
   path: number[][];
   label: string;
+  speed_runs?: { path: number[][]; color: string | null }[];
 }
 
 export function mapShown(): boolean {

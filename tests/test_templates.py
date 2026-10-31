@@ -8,7 +8,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from app.main import create_app
 from app.models import Address, Car, ChargeSample, TrackPoint
 from app.pages import build_charge_page, build_drive_page
-from tests.fakes import STREET, T0, boot, make_charge, make_drive, make_settings
+from tests.fakes import STREET, T0, boot, make_charge, make_drive, make_settings, speed_track
 
 TEMPLATES = Path(__file__).resolve().parents[1] / "app" / "templates"
 ENV = Environment(
@@ -22,6 +22,30 @@ HERO_CHARGE_LABELS = {"时长", "加入电量", "起点电量", "结束电量", 
 
 def render(name: str, page: dict) -> str:
     return ENV.get_template(name).render(v=page)
+
+
+def test_speed_legend_and_svg_match_map_data(tmp_path):
+    drive = make_drive(1, T0, T0 + timedelta(minutes=1))
+    for key in ("", "test-key"):
+        page = build_drive_page(
+            [drive], [speed_track([0, 0, 50, 100, 100, None])], None,
+            make_settings(tmp_path, amap_js_key=key),
+        )
+        html = render("drive.html", page)
+        assert "慢 · 0 km/h" in html and "快 · 100 km/h" in html
+        assert "按本次行程速度范围" in html
+        assert "主题色路段暂无速度数据" in html
+        assert page["speed_gradient"] in html
+        if not key:
+            for run in page["map_segments"][0].speed_runs:
+                assert f'points="{run.svg_points}"' in html
+                if run.color:
+                    assert f'style="stroke: {run.color}"' in html
+    constant = build_drive_page([drive], [speed_track([30, 30])], None, make_settings(tmp_path))
+    assert "全程 30 km/h" in render("drive.html", constant)
+    missing = build_drive_page([drive], [speed_track([None, None])], None, make_settings(tmp_path))
+    assert "暂无速度数据" in render("drive.html", missing)
+    assert 'class="speed-scale"' not in render("drive.html", missing)
 
 
 def test_drive_template_groups_fields_without_repeating_hero(tmp_path):

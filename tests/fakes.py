@@ -17,6 +17,18 @@ STREET = "中关村大街88号"
 NAV_DEST = "朝阳路10号"
 
 
+def speed_track(speeds: list[float | None]) -> list[TrackPoint]:
+    return [
+        TrackPoint(
+            date=T0 + timedelta(seconds=index),
+            latitude=31.2 + index * 0.00001,
+            longitude=121.4 + index * 0.00001,
+            speed=speed,
+        )
+        for index, speed in enumerate(speeds)
+    ]
+
+
 class FakeClock:
     def __init__(self, now: datetime = T0) -> None:
         self._now = now

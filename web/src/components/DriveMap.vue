@@ -16,7 +16,7 @@ import {
 
 const props = defineProps<{ amapSrc: string }>();
 
-const lines: { line: AMapPolyline; dashed: boolean }[] = [];
+const lines: { line: AMapPolyline; dashed: boolean; color: string | null }[] = [];
 const labels: AMapText[] = [];
 let map: AMapMap | null = null;
 let started = false;
@@ -26,7 +26,9 @@ function restyle(): void {
   map.setMapStyle(amapStyle());
   const style = labelStyle();
   for (const label of labels) label.setStyle(style);
-  for (const item of lines) item.line.setOptions({ strokeColor: lineColor(item.dashed) });
+  for (const item of lines) {
+    item.line.setOptions({ strokeColor: item.color ?? lineColor(item.dashed) });
+  }
 }
 
 function boot(): void {
@@ -38,15 +40,22 @@ function boot(): void {
   const overlays: unknown[] = [];
   for (const segment of segments as MapSegment[]) {
     if (!segment.path.length) continue;
-    const line = new amap.Polyline({
-      path: segment.path,
-      strokeColor: lineColor(segment.dashed),
-      strokeOpacity: 1,
-      strokeWeight: segment.dashed ? 3 : 5,
-      strokeStyle: segment.dashed ? "dashed" : "solid",
-    });
-    lines.push({ line, dashed: segment.dashed });
-    overlays.push(line);
+    const runs = !segment.dashed && segment.speed_runs?.length
+      ? segment.speed_runs
+      : [{ path: segment.path, color: null }];
+    for (const run of runs) {
+      const line = new amap.Polyline({
+        path: run.path,
+        strokeColor: run.color ?? lineColor(segment.dashed),
+        strokeOpacity: 1,
+        strokeWeight: segment.dashed ? 3 : 5,
+        strokeStyle: segment.dashed ? "dashed" : "solid",
+        lineJoin: "round",
+        lineCap: "round",
+      });
+      lines.push({ line, dashed: segment.dashed, color: run.color });
+      overlays.push(line);
+    }
     if (segment.dashed && segment.label) {
       const first = segment.path[0];
       const last = segment.path[segment.path.length - 1];

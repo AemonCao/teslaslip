@@ -78,6 +78,34 @@ beforeEach(() => {
 });
 
 describe("DriveMap", () => {
+  it("draws speed runs and keeps their colors after theme changes", async () => {
+    const path = [[121.5, 31.2], [121.6, 31.3], [121.7, 31.4], [121.8, 31.5]];
+    document.body.innerHTML = `<script id="map-data" type="application/json">${JSON.stringify([
+      { kind: "drive", dashed: false, path, label: "", speed_runs: [
+        { path: path.slice(0, 2), color: "#ff0000" },
+        { path: path.slice(1, 3), color: "#00ff00" },
+        { path: path.slice(2, 4), color: null },
+      ] },
+      { kind: "parking", dashed: true, path: path.slice(2, 4), label: "停车", speed_runs: [] },
+    ])}</script>`;
+    const wrapper = mount(DriveMap, { props: { amapSrc: AMAP_SRC } });
+    const fake = await finishLoad();
+    expect(fake.polylines).toHaveLength(4);
+    expect(fake.polylines[0].options).toMatchObject({ path: path.slice(0, 2), strokeColor: "#ff0000" });
+    expect(fake.polylines[1].options).toMatchObject({ strokeColor: "#00ff00" });
+    expect(fake.polylines[2].options).toMatchObject({ strokeColor: "#007aff" });
+    expect(fake.polylines[3].options).toMatchObject({ strokeStyle: "dashed", strokeColor: "#8e8e93" });
+    document.documentElement.setAttribute("data-theme", "dark");
+    document.documentElement.style.setProperty("--accent", "#0a84ff");
+    document.documentElement.style.setProperty("--line", "#98989d");
+    document.dispatchEvent(new Event("teslaslip-theme"));
+    expect(fake.polylines[0].setOptions).toHaveBeenLastCalledWith({ strokeColor: "#ff0000" });
+    expect(fake.polylines[1].setOptions).toHaveBeenLastCalledWith({ strokeColor: "#00ff00" });
+    expect(fake.polylines[2].setOptions).toHaveBeenLastCalledWith({ strokeColor: "#0a84ff" });
+    expect(fake.polylines[3].setOptions).toHaveBeenLastCalledWith({ strokeColor: "#98989d" });
+    wrapper.unmount();
+  });
+
   const segments = [
     { kind: "drive", dashed: false, path: [[121.5, 31.2], [121.6, 31.3]], label: "" },
     { kind: "park", dashed: true, path: [], label: "停车" },

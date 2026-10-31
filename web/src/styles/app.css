@@ -357,6 +357,11 @@
     justify-content: center;
   }
   #map { width: 100%; }
+  .speed-legend { padding: 12px 16px; }
+  .speed-caption { margin: 0; font-size: 12px; color: var(--secondary); }
+  .speed-scale { height: 8px; border-radius: 4px; margin: 8px 0; }
+  .speed-values { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; }
+  .speed-values + .speed-caption { margin-top: 8px; }
   body[data-page="drive"] #map { height: 300px; }
   body[data-page="charge"] #map { height: 220px; }
   html[data-map-height="compact"] body[data-page="drive"] #map { height: 180px; }

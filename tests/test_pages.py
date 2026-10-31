@@ -1,9 +1,81 @@
+import json
 from datetime import timedelta
+
+import pytest
 
 from app.geo import wgs84_to_gcj02
 from app.models import Address, Car, ChargeSample, TrackPoint
 from app.pages import build_charge_page, build_drive_page, expiry_from, link_expired
-from tests.fakes import STREET, T0, make_charge, make_drive, make_settings
+from tests.fakes import STREET, T0, make_charge, make_drive, make_settings, speed_track
+
+
+def test_speed_colors_share_range_and_preserve_parking(tmp_path):
+    drives = [make_drive(1, T0, T0 + timedelta(minutes=1)),
+              make_drive(2, T0 + timedelta(minutes=2), T0 + timedelta(minutes=3))]
+    page = build_drive_page(
+        drives, [speed_track([0, 0, 0, 50, 50]), speed_track([50, 50, 100, 100])],
+        None, make_settings(tmp_path),
+    )
+    first, parking, last = page["map_segments"]
+    assert (page["speed_min"], page["speed_max"]) == (0, 100)
+    assert [run.color for run in first.speed_runs] == ["#ff0000", "#ff8000", "#ffff00"]
+    assert [run.color for run in last.speed_runs] == ["#ffff00", "#80ff00", "#00ff00"]
+    assert len(first.speed_runs[0].path) == 3
+    assert parking.dashed and parking.label == "停车" and not parking.speed_runs
+    assert first.speed_runs[-1].color == last.speed_runs[0].color
+    for segment in (first, last):
+        assert segment.speed_runs[0].path[0] == segment.path[0]
+        assert segment.speed_runs[-1].path[-1] == segment.path[-1]
+        projected = segment.svg_points.split()
+        assert segment.speed_runs[0].svg_points.split()[0] == projected[0]
+        assert segment.speed_runs[-1].svg_points.split()[-1] == projected[-1]
+        for left, right in zip(segment.speed_runs, segment.speed_runs[1:]):
+            assert left.path[-1] == right.path[0]
+    data = json.loads(page["map_json"])
+    assert data[0]["speed_runs"][0]["color"] == "#ff0000"
+    assert data[1]["speed_runs"] == []
+
+
+@pytest.mark.parametrize("speed", [None, -1, float("nan"), float("inf")])
+def test_invalid_speed_does_not_become_zero_or_leak_into_json(tmp_path, speed):
+    drive = make_drive(1, T0, T0 + timedelta(minutes=1))
+    page = build_drive_page([drive], [speed_track([0, 20, speed, 40, 40])], None, make_settings(tmp_path))
+    assert page["speed_min"] == 0 and page["speed_max"] == 40
+    assert page["speed_missing"]
+    runs = page["map_segments"][0].speed_runs
+    assert [run.color for run in runs] == ["#ff8000", None, "#00ff00"]
+    assert len(runs[1].path) == 3
+    assert "NaN" not in page["map_json"] and "Infinity" not in page["map_json"]
+
+
+@pytest.mark.parametrize("speeds, color", [([30, 30, 30], "#ffff00"), ([0, 0], "#ffff00"), ([None, None], None)])
+def test_constant_or_missing_speed(tmp_path, speeds, color):
+    drive = make_drive(1, T0, T0 + timedelta(minutes=1))
+    page = build_drive_page([drive], [speed_track(speeds)], None, make_settings(tmp_path))
+    runs = page["map_segments"][0].speed_runs
+    assert len(runs) == 1 and runs[0].color == color
+    assert page["speed_min"] == page["speed_max"] == speeds[0]
+
+
+@pytest.mark.parametrize("speeds", [[], [20], [None]])
+def test_empty_or_single_speed_point(tmp_path, speeds):
+    drive = make_drive(1, T0, T0 + timedelta(minutes=1))
+    page = build_drive_page([drive], [speed_track(speeds)], None, make_settings(tmp_path))
+    assert page["map_segments"][0].speed_runs == []
+    assert page["has_track"] == bool(speeds)
+
+
+def test_speed_extremes_are_computed_before_downsampling(tmp_path):
+    points = speed_track([50] * 4001)
+    points[1].speed = 0
+    points[3].speed = 100
+    drive = make_drive(1, T0, T0 + timedelta(hours=2))
+    page = build_drive_page([drive], [points], None, make_settings(tmp_path))
+    segment = page["map_segments"][0]
+    assert len(segment.path) == 2000
+    assert (page["speed_min"], page["speed_max"]) == (0, 100)
+    assert len(segment.speed_runs) == 1 and segment.speed_runs[0].color == "#ffff00"
+    assert segment.speed_runs[0].path == segment.path
 
 
 def test_drive_page_converts_to_gcj_and_draws_parking_gap(tmp_path):

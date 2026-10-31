@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import colorsys
 import json
-from dataclasses import dataclass
+import math
+from dataclasses import dataclass, field
 from datetime import timedelta
 from urllib.parse import quote
 
@@ -18,6 +20,14 @@ MAP_POINT_LIMIT = 2000
 
 
 @dataclass
+class SpeedRun:
+    latlng: list[list[float]]
+    path: list[list[float]]
+    color: str | None
+    svg_points: str = ""
+
+
+@dataclass
 class MapSegment:
     kind: str
     dashed: bool
@@ -27,6 +37,7 @@ class MapSegment:
     label: str
     label_x: float = 0
     label_y: float = 0
+    speed_runs: list[SpeedRun] = field(default_factory=list)
 
 
 @dataclass
@@ -71,10 +82,13 @@ def build_drive_page(
     pairs = sorted(zip(drives, tracks, strict=True), key=lambda item: (item[0].end_date, item[0].id))
     ordered = [drive for drive, _points in pairs]
     full_lists = [sorted(points, key=lambda point: point.date) for _drive, points in pairs]
+    flat_points = [point for points in full_lists for point in points]
+    speeds = [point.speed for point in flat_points if _valid_speed(point.speed)]
+    speed_min = min(speeds) if speeds else None
+    speed_max = max(speeds) if speeds else None
     map_lists = [downsample(points, MAP_POINT_LIMIT) for points in full_lists]
     by_id = {drive.id: points for drive, points in zip(ordered, map_lists, strict=True)}
-    map_segments = _map_segments(ordered, by_id)
-    flat_points = [point for points in full_lists for point in points]
+    map_segments = _map_segments(ordered, by_id, speed_min, speed_max)
     start_battery = _nearby_battery(full_lists[0] if full_lists else [], first=True)
     end_battery = _nearby_battery(full_lists[-1] if full_lists else [], first=False)
     tires = _last_tires(flat_points)
@@ -139,9 +153,25 @@ def build_drive_page(
         "stats": stats,
         "segments": rows,
         "map_segments": map_segments,
+        "speed_min": speed_min,
+        "speed_max": speed_max,
+        "speed_min_text": fmt_number(speed_min, 0),
+        "speed_max_text": fmt_number(speed_max, 0),
+        "speed_missing": any(not _valid_speed(point.speed) for point in flat_points),
+        "speed_gradient": ", ".join(
+            f"{_speed_color(step, 0, 100)} {step}%" for step in range(101)
+        ),
         "map_json": json.dumps(
             [
-                {"kind": segment.kind, "dashed": segment.dashed, "path": segment.path, "label": segment.label}
+                {
+                    "kind": segment.kind,
+                    "dashed": segment.dashed,
+                    "path": segment.path,
+                    "label": segment.label,
+                    "speed_runs": [
+                        {"path": run.path, "color": run.color} for run in segment.speed_runs
+                    ],
+                }
                 for segment in map_segments
             ],
             ensure_ascii=False,
@@ -217,12 +247,50 @@ def build_charge_page(charge: Charge, settings: Settings) -> dict[str, object]:
     }
 
 
-def _map_segments(drives: list[Drive], by_id: dict[int, list[TrackPoint]]) -> list[MapSegment]:
+def _valid_speed(speed: float | None) -> bool:
+    return speed is not None and math.isfinite(speed) and speed >= 0
+
+
+def _speed_color(speed: float, low: float, high: float) -> str:
+    ratio = 0.5 if low == high else max(0, min(1, (speed - low) / (high - low)))
+    step = round(ratio * 100)
+    channels = colorsys.hls_to_rgb(step / 300, 0.5, 1)
+    return "#" + "".join(f"{round(channel * 255):02x}" for channel in channels)
+
+
+def _speed_runs(
+    points: list[TrackPoint],
+    latlng: list[list[float]],
+    path: list[list[float]],
+    low: float | None,
+    high: float | None,
+) -> list[SpeedRun]:
+    runs: list[SpeedRun] = []
+    for index in range(len(points) - 1):
+        first, last = points[index].speed, points[index + 1].speed
+        color = None
+        if _valid_speed(first) and _valid_speed(last) and low is not None and high is not None:
+            color = _speed_color((first + last) / 2, low, high)
+        if runs and runs[-1].color == color:
+            runs[-1].latlng.append(latlng[index + 1])
+            runs[-1].path.append(path[index + 1])
+        else:
+            runs.append(SpeedRun(latlng[index:index + 2], path[index:index + 2], color))
+    return runs
+
+
+def _map_segments(
+    drives: list[Drive],
+    by_id: dict[int, list[TrackPoint]],
+    speed_min: float | None,
+    speed_max: float | None,
+) -> list[MapSegment]:
     drive_segments: list[MapSegment] = []
     for drive in drives:
+        points = by_id.get(drive.id, [])
         latlng = []
         path = []
-        for point in by_id.get(drive.id, []):
+        for point in points:
             lat, lng = wgs84_to_gcj02(point.latitude, point.longitude)
             latlng.append([lat, lng])
             path.append([lng, lat])
@@ -234,6 +302,7 @@ def _map_segments(drives: list[Drive], by_id: dict[int, list[TrackPoint]]) -> li
                 path=path,
                 svg_points="",
                 label="",
+                speed_runs=_speed_runs(points, latlng, path, speed_min, speed_max),
             )
         )
     visual: list[MapSegment] = []
@@ -282,6 +351,10 @@ def _project(segments: list[MapSegment]) -> None:
     for segment in segments:
         rendered = [xy(lat, lng) for lat, lng in segment.latlng]
         segment.svg_points = " ".join(f"{x:.1f},{y:.1f}" for x, y in rendered)
+        for run in segment.speed_runs:
+            run.svg_points = " ".join(
+                f"{x:.1f},{y:.1f}" for x, y in (xy(lat, lng) for lat, lng in run.latlng)
+            )
         if segment.label and rendered:
             start = rendered[0]
             end = rendered[-1]

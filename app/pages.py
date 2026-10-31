@@ -10,6 +10,7 @@ from datetime import timedelta
 from urllib.parse import quote
 
 from app.charge import summarize_samples
+from app.charts import charge_charts, drive_charts, safe_json
 from app.config import Settings
 from app.formatutil import fmt_elapsed, fmt_local, fmt_minutes, fmt_number, fmt_optional_int, fmt_signed
 from app.geo import downsample, wgs84_to_gcj02
@@ -153,6 +154,7 @@ def build_drive_page(
         "stats": stats,
         "segments": rows,
         "map_segments": map_segments,
+        "chart_json": safe_json(drive_charts(ordered, full_lists)),
         "speed_min": speed_min,
         "speed_max": speed_max,
         "speed_min_text": fmt_number(speed_min, 0),
@@ -237,6 +239,7 @@ def build_charge_page(charge: Charge, settings: Settings) -> dict[str, object]:
         "stats": stats,
         "charger": charger,
         "sample_count": summary.sample_count,
+        "chart_json": safe_json(charge_charts(charge)),
         "point": point,
         "point_json": json.dumps(point, ensure_ascii=False),
         "amap_key": settings.amap_js_key,

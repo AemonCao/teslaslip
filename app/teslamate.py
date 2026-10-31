@@ -139,6 +139,14 @@ SELECT
   latitude,
   longitude,
   speed,
+  power,
+  odometer,
+  elevation,
+  inside_temp,
+  outside_temp,
+  rated_battery_range_km,
+  ideal_battery_range_km,
+  battery_heater_on,
   battery_level,
   usable_battery_level,
   tpms_pressure_fl,
@@ -154,7 +162,7 @@ FROM positions
 WHERE drive_id = %(drive_id)s
   AND date >= %(start_date)s
   AND date <= %(end_date)s
-ORDER BY date ASC
+ORDER BY date ASC, id ASC
 """
 
 CHARGES_AFTER_SQL = """
@@ -209,10 +217,16 @@ SELECT
   conn_charge_cable,
   fast_charger_brand,
   fast_charger_type,
-  fast_charger_present
+  fast_charger_present,
+  battery_level,
+  usable_battery_level,
+  charge_energy_added,
+  rated_battery_range_km,
+  outside_temp,
+  battery_heater_on
 FROM charges
 WHERE charging_process_id = %(charge_id)s
-ORDER BY date ASC
+ORDER BY date ASC, id ASC
 """
 
 SELECT_ONE_SQL = "SELECT 1"
@@ -337,6 +351,14 @@ def track_from_row(row: dict[str, Any]) -> TrackPoint:
         latitude=float(row["latitude"]),
         longitude=float(row["longitude"]),
         speed=_float(row.get("speed")),
+        power=_float(row.get("power")),
+        odometer=_float(row.get("odometer")),
+        elevation=_float(row.get("elevation")),
+        inside_temp=_float(row.get("inside_temp")),
+        outside_temp=_float(row.get("outside_temp")),
+        rated_range=_float(row.get("rated_battery_range_km")),
+        ideal_range=_float(row.get("ideal_battery_range_km")),
+        battery_heater_on=_bool(row.get("battery_heater_on")),
         battery_level=_int(row.get("battery_level")),
         usable_battery_level=_int(row.get("usable_battery_level")),
         tpms_fl=_float(row.get("tpms_pressure_fl")),
@@ -400,6 +422,12 @@ def sample_from_row(row: dict[str, Any]) -> ChargeSample:
         fast_charger_brand=_text(row.get("fast_charger_brand")),
         fast_charger_type=_text(row.get("fast_charger_type")),
         fast_charger_present=_bool(row.get("fast_charger_present")),
+        battery_level=_int(row.get("battery_level")),
+        usable_battery_level=_int(row.get("usable_battery_level")),
+        charge_energy_added=_float(row.get("charge_energy_added")),
+        rated_range=_float(row.get("rated_battery_range_km")),
+        outside_temp=_float(row.get("outside_temp")),
+        battery_heater_on=_bool(row.get("battery_heater_on")),
     )
 
 

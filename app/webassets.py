@@ -12,7 +12,7 @@ from app.redact import log_event
 
 VITE_ORIGIN = "http://127.0.0.1:5173"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-_ISLANDS = {"settings", "drive-map", "charge-map"}
+_ISLANDS = {"settings", "drive-map", "charge-map", "charts"}
 _missing_logged = False
 
 

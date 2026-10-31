@@ -51,6 +51,18 @@ function mountApp() {
 }
 
 describe("SettingsApp", () => {
+  it("persists independent chart switches and restores their defaults", async () => {
+    const wrapper = mountApp();
+    for (const label of ["显示驾驶图表", "显示充电图表"]) {
+      const row = wrapper.findAll(".row").find((item) => item.text().startsWith(label));
+      await row!.get("button").trigger("click");
+      expect(row!.get("button").attributes("aria-pressed")).toBe("false");
+    }
+    expect(JSON.parse(localStorage.getItem("teslaslip-ui") ?? "")).toMatchObject({ driveCharts: false, chargeCharts: false });
+    await wrapper.get("button.reset").trigger("click");
+    expect(JSON.parse(localStorage.getItem("teslaslip-ui") ?? "")).toMatchObject({ driveCharts: true, chargeCharts: true });
+    wrapper.unmount();
+  });
   it("lists the display controls and returns through history", async () => {
     const back = vi.spyOn(history, "back").mockImplementation(() => {});
     const wrapper = mountApp();

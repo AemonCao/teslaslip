@@ -34,6 +34,8 @@
   html[data-theme="dark"][data-accent="purple"] { --accent: #bf5af2; }
   html[data-text="large"] { font-size: 112.5%; }
   html[data-map="off"] [data-section="map"],
+  html[data-hide~="driveCharts"] [data-section="driveCharts"],
+  html[data-hide~="chargeCharts"] [data-section="chargeCharts"],
   html[data-hide~="driving"] [data-section="driving"],
   html[data-hide~="range"] [data-section="range"],
   html[data-hide~="odometer"] [data-section="odometer"],
@@ -373,6 +375,56 @@
   polyline[data-dashed="1"] { stroke: var(--line); }
   text[data-label="parking"] { fill: var(--text); }
   circle[data-kind="charge-point"] { fill: var(--accent); }
+  .charts { min-width: 0; }
+  .chart-intro, .chart-footnote {
+    color: var(--secondary);
+    font-size: 0.75rem;
+    line-height: 1.6;
+    margin: 8px 12px 14px;
+    overflow-wrap: anywhere;
+  }
+  .time-chart { margin: 12px 0; padding: 12px 0 2px; overflow: hidden; }
+  .chart-heading { padding: 0 14px; }
+  .charts h3 { margin: 0; font-size: 0.9375rem; font-weight: 600; }
+  .chart-heading h3 span { font-weight: 400; color: var(--secondary); }
+  .chart-summary { font-size: 0.8125rem; margin: 4px 0 8px; font-variant-numeric: tabular-nums; }
+  .chart-svg { background: transparent; touch-action: pan-y; user-select: none; min-height: 150px; }
+  .chart-svg:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .chart-axis { fill: var(--secondary); font: 19px system-ui, sans-serif; }
+  .chart-grid line { stroke: var(--separator); }
+  .chart-zero { stroke: var(--line); stroke-dasharray: 4 3; }
+  .chart-parking { fill: var(--fill); opacity: 0.5; }
+  .chart-svg [data-color="0"], .chart-legend [data-color="0"] { --series: var(--accent); }
+  .chart-svg [data-color="1"], .chart-legend [data-color="1"] { --series: #bf5af2; }
+  .chart-svg [data-color="2"], .chart-legend [data-color="2"] { --series: #ce7600; }
+  .chart-svg [data-color="3"], .chart-legend [data-color="3"] { --series: #168b71; }
+  html[data-theme="dark"] .chart-svg [data-color="2"], html[data-theme="dark"] .chart-legend [data-color="2"] { --series: #ffb340; }
+  html[data-theme="dark"] .chart-svg [data-color="3"], html[data-theme="dark"] .chart-legend [data-color="3"] { --series: #6ce3c7; }
+  .chart-line { fill: none; stroke: var(--series); stroke-width: 1.8; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+  .chart-point { fill: var(--series); }
+  .chart-positive { fill: #e07718; fill-opacity: 0.3; }
+  .chart-negative { fill: #24a878; fill-opacity: 0.4; }
+  .chart-anomaly { stroke: #d75831; stroke-width: 2; stroke-dasharray: 3 3; }
+  .chart-cursor { stroke: var(--text); stroke-width: 1; stroke-dasharray: 3 3; pointer-events: none; }
+  .chart-readings { margin: 4px 14px 8px; font-size: 0.8125rem; font-variant-numeric: tabular-nums; }
+  .chart-readings p { margin: 4px 0; }
+  .chart-readings span { color: var(--secondary); }
+  .chart-legend { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 14px; }
+  .chart-legend button { border: 1px solid var(--separator); border-radius: 8px; background: var(--card); color: var(--text); font: inherit; font-size: 0.75rem; min-height: 36px; padding: 6px 8px; cursor: pointer; }
+  .chart-legend button[aria-pressed="true"] { border-bottom: 3px solid var(--series); }
+  .chart-legend button[aria-pressed="false"] { text-decoration: line-through; }
+  .chart-details summary { padding: 14px; background: var(--card); border-radius: 12px; font-size: 0.875rem; cursor: pointer; }
+  .chart-warning { color: var(--text); font-weight: 600; }
+  .speed-distribution { margin-top: 14px; padding: 16px 0 2px; }
+  .speed-distribution h3 { padding: 0 14px; }
+  .distribution-row { padding: 4px 14px 12px; font-size: 0.75rem; }
+  .distribution-row > div:first-child { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .distribution-track { margin-top: 5px; border-radius: 4px; background: var(--fill); height: 8px; overflow: hidden; }
+  .distribution-track span { display: block; background: var(--accent); height: 100%; }
+  .chart-wait { padding: 0 14px; font-size: 0.8125rem; }
+  @media (max-width: 400px) {
+    .chart-axis { font-size: 24px; }
+  }
   @media (prefers-reduced-motion: reduce) {
     html, body, .card, .bar, .theme-toggle, .choice button, .switch, .swatch, .reset { transition: none; }
     .theme-toggle:active, .choice button:active, .switch:active, .swatch:active, .reset:active { transform: none; }

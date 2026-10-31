@@ -1,0 +1,7 @@
+    <section class="group" data-section="{{ 'driveCharts' if v.driving_text is defined else 'chargeCharts' }}">
+      <h2>过程图表</h2>
+      <div id="charts-app"><p class="note">交互图表正在加载；若未显示，请启用脚本或刷新页面。文字总结可继续阅读。</p></div>
+      <noscript><p class="note">交互图表需要 JavaScript。</p></noscript>
+      <script id="chart-data" type="application/json">{{ v.chart_json | safe }}</script>
+      {% if island is defined %}{{ island("charts") }}{% endif %}
+    </section>

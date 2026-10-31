@@ -39,6 +39,8 @@ function fill(next: Prefs): void {
   prefs.mapHeight = next.mapHeight;
   prefs.rangeMode = next.rangeMode;
   prefs.chargeSamples = next.chargeSamples;
+  prefs.driveCharts = next.driveCharts;
+  prefs.chargeCharts = next.chargeCharts;
   for (const name of SECTION_NAMES) prefs.sections[name] = next.sections[name];
 }
 
@@ -157,6 +159,10 @@ function back(): void {
       <section class="group">
         <h2>出门页</h2>
         <div class="card">
+          <div class="row">
+            <span>显示驾驶图表</span>
+            <button type="button" class="switch" :aria-pressed="prefs.driveCharts" @click="prefs.driveCharts = !prefs.driveCharts; commit()">{{ prefs.driveCharts ? '开' : '关' }}</button>
+          </div>
           <div v-for="section in sections" :key="section.name" class="row">
             <span>{{ section.label }}</span>
             <button type="button" class="switch" :aria-pressed="prefs.sections[section.name]" @click="toggleSection(section.name)">
@@ -181,6 +187,10 @@ function back(): void {
       <section class="group">
         <h2>充电页</h2>
         <div class="card">
+          <div class="row">
+            <span>显示充电图表</span>
+            <button type="button" class="switch" :aria-pressed="prefs.chargeCharts" @click="prefs.chargeCharts = !prefs.chargeCharts; commit()">{{ prefs.chargeCharts ? '开' : '关' }}</button>
+          </div>
           <div class="row">
             <span>采样明细</span>
             <button type="button" class="switch" :aria-pressed="prefs.chargeSamples" @click="toggleSamples">

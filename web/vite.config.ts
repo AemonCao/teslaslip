@@ -19,6 +19,7 @@ export default defineConfig({
         settings: resolve(root, "src/entries/settings.ts"),
         "drive-map": resolve(root, "src/entries/drive-map.ts"),
         "charge-map": resolve(root, "src/entries/charge-map.ts"),
+        charts: resolve(root, "src/entries/charts.ts"),
       },
     },
   },

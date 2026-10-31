@@ -40,6 +40,8 @@ export interface Prefs {
   sections: SectionPrefs;
   rangeMode: RangeMode;
   chargeSamples: boolean;
+  driveCharts: boolean;
+  chargeCharts: boolean;
 }
 
 export interface TeslaSlipUI {
@@ -70,6 +72,8 @@ export function defaults(): Prefs {
     },
     rangeMode: "both",
     chargeSamples: true,
+    driveCharts: true,
+    chargeCharts: true,
   };
 }
 
@@ -87,6 +91,8 @@ export function normalize(raw: unknown): Prefs {
   if (includes(HEIGHTS, raw.mapHeight)) base.mapHeight = raw.mapHeight;
   if (includes(RANGES, raw.rangeMode)) base.rangeMode = raw.rangeMode;
   if (typeof raw.chargeSamples === "boolean") base.chargeSamples = raw.chargeSamples;
+  if (typeof raw.driveCharts === "boolean") base.driveCharts = raw.driveCharts;
+  if (typeof raw.chargeCharts === "boolean") base.chargeCharts = raw.chargeCharts;
   if (isRecord(raw.sections)) {
     for (const name of SECTION_NAMES) {
       if (typeof raw.sections[name] === "boolean") base.sections[name] = raw.sections[name];
@@ -141,6 +147,8 @@ export function apply(prefs: Prefs): void {
     if (!prefs.sections[name]) hidden.push(name);
   }
   if (!prefs.chargeSamples) hidden.push("samples");
+  if (!prefs.driveCharts) hidden.push("driveCharts");
+  if (!prefs.chargeCharts) hidden.push("chargeCharts");
   if (hidden.length) root.setAttribute("data-hide", hidden.join(" "));
   else root.removeAttribute("data-hide");
   document.dispatchEvent(new Event("teslaslip-theme"));

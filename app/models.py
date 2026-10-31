@@ -80,6 +80,14 @@ class TrackPoint:
     front_defrost: bool | None = None
     rear_defrost: bool | None = None
     speed: float | None = None
+    power: float | None = None
+    odometer: float | None = None
+    elevation: float | None = None
+    inside_temp: float | None = None
+    outside_temp: float | None = None
+    rated_range: float | None = None
+    ideal_range: float | None = None
+    battery_heater_on: bool | None = None
 
 
 @dataclass
@@ -93,6 +101,12 @@ class ChargeSample:
     fast_charger_brand: str | None = None
     fast_charger_type: str | None = None
     fast_charger_present: bool | None = None
+    battery_level: int | None = None
+    usable_battery_level: int | None = None
+    charge_energy_added: float | None = None
+    rated_range: float | None = None
+    outside_temp: float | None = None
+    battery_heater_on: bool | None = None
 
 
 @dataclass

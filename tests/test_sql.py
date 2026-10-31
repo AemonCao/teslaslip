@@ -13,6 +13,7 @@ from app.teslamate import (
     car_from_row,
     positions_query_is_bounded,
     track_from_row,
+    sample_from_row,
 )
 
 
@@ -58,6 +59,14 @@ CREATE TABLE positions (
     latitude real,
     longitude real,
     speed integer,
+    power integer,
+    odometer real,
+    elevation real,
+    inside_temp real,
+    outside_temp real,
+    rated_battery_range_km real,
+    ideal_battery_range_km real,
+    battery_heater_on integer,
     battery_level integer,
     usable_battery_level integer,
     tpms_pressure_fl real,
@@ -103,6 +112,12 @@ CREATE TABLE charges (
     fast_charger_brand text,
     fast_charger_type text,
     fast_charger_present integer,
+    battery_level integer,
+    usable_battery_level integer,
+    charge_energy_added real,
+    rated_battery_range_km real,
+    outside_temp real,
+    battery_heater_on integer,
     charging_process_id integer
 );
 """
@@ -160,6 +175,9 @@ def test_position_query_uses_drive_id_and_time_window():
     assert track_from_row(rows[0]).speed == 53
     assert track_from_row({**rows[0], "speed": None}).speed is None
     assert track_from_row({**rows[0], "speed": 0}).speed == 0
+    conn.execute("UPDATE positions SET power = -17, elevation = 100, outside_temp = 20, rated_battery_range_km = 400, battery_heater_on = 0 WHERE id = 1")
+    mapped = track_from_row(fetch(conn, POSITIONS_SQL, {"drive_id": 7, "start_date": "2026-10-17T02:00:00+00:00", "end_date": "2026-10-17T02:30:00+00:00"})[0])
+    assert (mapped.power, mapped.elevation, mapped.outside_temp, mapped.rated_range, mapped.battery_heater_on) == (-17, 100, 20, 400, False)
 
 
 def test_watermark_sql_ignores_open_drive_even_if_id_is_larger():
@@ -203,3 +221,6 @@ def test_charge_query_is_by_id_and_samples_do_not_cross_sessions():
     assert charge[0]["latitude"] == 31.1
     assert charge[0]["longitude"] == 121.1
     assert [row["charger_power"] for row in samples] == [7]
+    conn.execute("UPDATE charges SET battery_level = 0, charge_energy_added = 0, rated_battery_range_km = 100, outside_temp = 21, battery_heater_on = 1 WHERE id = 1")
+    mapped = sample_from_row(fetch(conn, CHARGE_SAMPLES_SQL, {"charge_id": 3})[0])
+    assert (mapped.battery_level, mapped.charge_energy_added, mapped.rated_range, mapped.outside_temp, mapped.battery_heater_on) == (0, 0, 100, 21, True)

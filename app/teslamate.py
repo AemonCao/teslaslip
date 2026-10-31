@@ -229,6 +229,34 @@ WHERE charging_process_id = %(charge_id)s
 ORDER BY date ASC, id ASC
 """
 
+REPORT_DRIVES_SQL = f"""
+SELECT {DRIVE_COLUMNS}
+{DRIVE_JOINS}
+WHERE d.car_id = %(car_id)s
+  AND d.end_date >= %(start_date)s
+  AND d.end_date < %(end_date)s
+ORDER BY d.end_date ASC, d.id ASC
+"""
+
+REPORT_CHARGES_SQL = """
+SELECT c.id, c.start_date, c.end_date, c.duration_min,
+       c.charge_energy_added, c.cost, g.name AS geofence_name
+FROM charging_processes c
+LEFT JOIN geofences g ON g.id = c.geofence_id
+WHERE c.car_id = %(car_id)s
+  AND c.end_date >= %(start_date)s
+  AND c.end_date < %(end_date)s
+ORDER BY c.end_date ASC, c.id ASC
+"""
+
+FIRST_RECORD_SQL = """
+SELECT MIN(first_date) AS first_date FROM (
+    SELECT MIN(start_date) AS first_date FROM drives WHERE car_id = %(car_id)s
+    UNION ALL
+    SELECT MIN(start_date) AS first_date FROM charging_processes WHERE car_id = %(car_id)s
+) recorded
+"""
+
 SELECT_ONE_SQL = "SELECT 1"
 
 CAR_SQL = """
@@ -248,6 +276,9 @@ ALL_SQL = (
     CHARGE_BY_ID_SQL,
     CHARGE_SAMPLES_SQL,
     CAR_SQL,
+    REPORT_DRIVES_SQL,
+    REPORT_CHARGES_SQL,
+    FIRST_RECORD_SQL,
     SELECT_ONE_SQL,
 )
 
@@ -448,6 +479,22 @@ class PostgresTeslaMate:
             return True
         except Exception:
             return False
+
+    def report_records(self, car_id: int, start: datetime, end: datetime):
+        params = {
+            "car_id": car_id,
+            "start_date": as_naive_utc(start),
+            "end_date": as_naive_utc(end),
+        }
+        drives = [drive_from_row(row) for row in self._fetch(REPORT_DRIVES_SQL, params)]
+        charges = self._fetch(REPORT_CHARGES_SQL, params)
+        for charge in charges:
+            charge["start_date"] = as_utc(charge["start_date"])
+            charge["end_date"] = as_utc(charge["end_date"])
+            for key in ("duration_min", "charge_energy_added", "cost"):
+                charge[key] = _float(charge[key])
+        first = self._fetch(FIRST_RECORD_SQL, {"car_id": car_id})[0]["first_date"]
+        return drives, charges, as_utc(first) if first else None
 
     def max_ended_drive_id(self, car_id: int) -> int:
         rows = self._fetch(MAX_ENDED_DRIVE_SQL, {"car_id": car_id})

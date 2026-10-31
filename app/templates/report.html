@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {% include "_theme_head.html" %}
+  <title>{{ v.title }}</title>
+</head>
+<body data-page="report">
+<div class="sheet">
+  <header class="bar">
+    <div class="bar-row">
+      <div class="titles">
+        <p class="eyebrow">TeslaSlip · {{ v.kind_label }}</p>
+        <h1>{{ v.title }}</h1>
+      </div>
+      {% include "_theme_toggle.html" %}
+    </div>
+    <p class="sub">{{ v.period_text }}</p>
+  </header>
+  <main>
+    <section class="hero report-intro">
+      <p class="report-summary">{{ v.opening }}</p>
+      <p class="hero-meta">{{ v.coverage }}</p>
+    </section>
+    <section class="report-metrics" aria-label="本期总览">
+      {% for metric in v.metrics %}
+      <div class="card report-metric">
+        <p class="kicker">{{ metric.label }}</p>
+        <p class="report-value">{{ metric.value }}</p>
+        <p class="footnote">{{ metric.note }}</p>
+      </div>
+      {% endfor %}
+    </section>
+    <section class="group">
+      <h2>{{ '每月' if v.kind == 'year' else '每日' }}趋势</h2>
+      <div class="card report-trends">
+        {% for key, label, unit in [('distance', '行驶里程', 'km'), ('energy', '充入电量', 'kWh')] %}
+        <p class="report-chart-label">{{ label }} · {{ unit }}</p>
+        <svg class="report-chart" viewBox="0 0 560 174" role="img" aria-label="{{ label }}趋势，详细数值见下方明细">
+          <line x1="24" y1="136" x2="540" y2="136" class="report-axis"></line>
+          {% for bucket in v.trend %}
+          <g>
+            <title>{{ bucket.label }}：{{ bucket[key ~ '_text'] }}{{ '，无记录' if not bucket.has_records else '' }}</title>
+            <rect x="{{ bucket.x }}" y="{{ 136 - bucket[key ~ '_height'] }}" width="{{ bucket.width }}" height="{{ bucket[key ~ '_height'] }}" rx="2" class="report-bar" data-series="{{ key }}"></rect>
+            {% if bucket.show_label %}<text x="{{ bucket.x + bucket.width / 2 }}" y="159" text-anchor="middle">{{ bucket.label }}</text>{% endif %}
+          </g>
+          {% endfor %}
+        </svg>
+        {% endfor %}
+        <details class="report-details">
+          <summary>查看趋势明细</summary>
+          {% for bucket in v.trend %}
+          <div class="row"><span>{{ bucket.label }}{{ ' · 无记录' if not bucket.has_records else '' }}</span><span class="value">{{ bucket.distance_text }} · {{ bucket.energy_text }}</span></div>
+          {% endfor %}
+        </details>
+      </div>
+    </section>
+    <section class="group">
+      <h2>与上期相比</h2>
+      <div class="card">
+        {% for item in v.comparisons %}
+        <div class="seg"><div class="seg-top"><span>{{ item.label }}</span></div><p class="seg-meta">{{ item.text }} · 上期 {{ item.previous }}</p></div>
+        {% endfor %}
+        <p class="note">上期：{{ v.previous_text }}。自然月和自然年的长度可能不同，以上比较总量。</p>
+      </div>
+    </section>
+    <section class="group">
+      <h2>充电小结</h2>
+      <div class="card">
+        <div class="row"><span>已结束充电</span><span class="value">{{ v.charge_count }} 次</span></div>
+        <div class="row"><span>充电记录时长</span><span class="value">{{ v.charge_duration }}</span></div>
+        <div class="row"><span>费用完整度</span><span class="value">{{ v.cost_coverage }}</span></div>
+      </div>
+    </section>
+    <section class="group">
+      <h2>本期亮点</h2>
+      <div class="card">
+        {% for highlight in v.highlights %}<p class="note">{{ highlight }}</p>{% else %}<p class="note">记录不足，暂无亮点。</p>{% endfor %}
+      </div>
+    </section>
+    {% if v.places %}
+    <section class="group">
+      <h2>常去地点 · 按行程到达次数</h2>
+      <div class="card">
+        {% for place in v.places %}<div class="row"><span>{{ place.name }}</span><span class="value">{{ place.count }} 次</span></div>{% endfor %}
+      </div>
+    </section>
+    {% endif %}
+    {% if v.cities %}
+    <section class="group">
+      <h2>年度足迹 · 已记录的到达城市</h2>
+      <div class="card"><p class="note">{{ v.cities | join(' · ') }}</p></div>
+    </section>
+    {% endif %}
+    <section class="group">
+      <h2>统计说明</h2>
+      <div class="card">
+        {% for note in v.notes %}<p class="note">{{ note }}</p>{% endfor %}
+        <p class="note">生成于 {{ v.generated_text }}，此页为生成时快照，之后补录的数据不会改变本报告。</p>
+      </div>
+    </section>
+  </main>
+</div>
+</body>
+</html>

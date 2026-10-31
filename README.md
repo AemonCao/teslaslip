@@ -2,7 +2,7 @@
 
 停车或充电结束后，TeslaSlip 生成一张只能靠链接打开的中文总结页，并用 [Bark](https://github.com/Finb/bark-server) 推到手机。
 
-行程和充电数据来自 TeslaMate 的 Postgres。何时去查库，看 TeslaMate 已经发到 MQTT 上的车辆状态。本服务对数据库只有只读查询，不改 TeslaMate，也不接 Tesla 账号。
+行程和充电数据来自 TeslaMate 的 Postgres。单次总结由 TeslaMate 已经发到 MQTT 上的车辆状态触发；周报、月报和年报由独立定时任务生成。本服务对数据库只有只读查询，不改 TeslaMate，也不接 Tesla 账号。
 
 后续图表功能的阶段安排、数据依据和验收要求见 [图表开发计划](图表开发计划.md)。
 
@@ -36,12 +36,50 @@ SQLite 里的 `drive_watermark` 和 `charge_watermark` 是已经处理过的最�
 
 连上 MQTT 后，先记下当前保留的 `state` 和 `charging_state`。这条保留值不当成新的停车或充电结束。记下之后，再补水位以上、安静期已过的出门，以及水位以上已经结束的充电。这是补上进程宕机期间错过的状态变化。
 
+## 周报、月报和年报
+
+报告提供六项总览：行驶里程、驾驶时长、出门次数、用车天数、充入电量和已记录充电费用。周报、月报按日展示里程与充电量趋势，年报按月展示；同时提供上一周期对比、充电次数与时长、费用完整度、最多三条事实亮点和常去地点。年报额外展示已记录的到达城市。
+
+默认开启自动报告，按上海时间在以下日期的 `REPORT_HOUR` 点（默认 09:00）生成并通过 Bark 推送随机链接：
+
+- 周一：上一个周一 00:00 到本周一 00:00 的周报。
+- 每月 1 日：上一个自然月的月报。
+- 每年 1 月 1 日：上一个自然年的年报。
+
+首次启用只初始化各周期游标，不补推已经到期的历史报告。如果在到期日推送时间之前启动，当天到时仍会推送。之后服务重启会补各类最近一期已到期报告；停机跨过多个周期时，各类仅补最新一期，历史可用命令手动生成。`REPORTS_ENABLED=false` 关闭自动生成，手动生成仍可用。
+
+生成结果是 SQLite 中的固定快照，打开页面和 Bark 重试不会再次查询 TeslaMate。每车、每类、每周期只有一份报告；报告、随机链接、发件箱和周期游标一起提交。成功发送后标记已发送，失败沿用 Bark 的重试间隔及原链接。发送成功但本地确认前进程退出的极短窗口仍可能重复通知，不保证跨网络的恰好一次投递。
+
+统计口径：
+
+- 使用上海时间的半开区间 `[开始, 结束)`。只计已结束记录，行程和充电整条归入结束日；跨周期记录不拆分时长、里程和电量。
+- 出门在各周期内沿用 `OUTING_GAP_MINUTES` 分组和挪车门槛；跨周期的一次出门在各周期分别合并。纯挪车不计出门次数，里程和时长仍计入。
+- 用车天数按有已结束行程的日期去重。无记录不能据此推断车辆未使用或采集正常。
+- 费用缺失显示未知，零费用保留为零；费用沿用 TeslaMate 原记录币种，不额外假设币种。部分费用缺失时展示已知合计及有费用记录的次数。
+- 里程、时长、电量缺失或无效时仅合计已知值并注明缺失数，相关上期比较停用；上期为零时不计算增长百分比。
+- 数据库最早记录晚于本期开始时标为范围不完整。只有最早记录覆盖两个周期，才提供上期对比；这不代表中间没有采集缺口。自然月、自然年的总量比较未按天数归一化。
+- 充入电量不当作行驶耗电，不估算百公里能耗、电池健康、回收率或准确行驶电费。第一版不包含通勤推断、足迹地图和年度分享卡。
+
+本机使用相同环境变量及 `SQLITE_PATH`，可手动生成已结束周期，日期填写该周期内任一天：
+
+```powershell
+.\.venv\Scripts\python -m app.report week 2026-10-19
+.\.venv\Scripts\python -m app.report month 2026-09-01
+.\.venv\Scripts\python -m app.report year 2025-01-01
+.\.venv\Scripts\python -m app.report month 2026-09-01 --push
+```
+
+命令输出完整私有链接，请妥善保存。默认仅生成不推送；`--push` 加入发件箱，由使用同一 SQLite 的运行中服务在约一分钟内接手。对已发送报告重复 `--push` 不重发。NAS 容器内可将解释器改为 `python`。命令同样会写 SQLite，NAS 上执行仍遵守无校验盘的写盘确认要求。
+
+报告链接沿用 `TRIP_LINK_TTL_DAYS`，过期返回 404；同周期重复生成复用原链接与快照，不刷新有效期。数据库后续补录或修改费用不会改变已生成报告。通知只含日期和汇总数字，地点只显示在私有网页里；没有公开报告列表。
+
 ## 页面
 
 | 路径 | 作用 |
 | --- | --- |
 | `/d/{token}` | 出门总结 |
 | `/c/{token}` | 充电总结 |
+| `/r/{token}` | 周报、月报、年报固定快照 |
 | `/settings` | 这台手机的显示设置 |
 | `/healthz` | 健康检查 |
 | `/` | 返回「未找到」 |
@@ -79,8 +117,9 @@ SQLite 里的 `drive_watermark` 和 `charge_watermark` 是已经处理过的最�
 - FastAPI 提供页面和 `/healthz`
 - 一个 MQTT 任务，只订下面三个主题
 - 一个本地定时器，负责关单重试、安静期和 Bark 重发
+- 一个独立报告任务，负责自然周、月、年到期生成及失败重试
 
-定时器不扫描数据库。查 TeslaMate 的时机是进程启动、MQTT 连上后的追赶、状态变化，以及已经写在 SQLite 里的下一次检查时间。
+单次总结定时器不扫描 TeslaMate 数据库。查 TeslaMate 的时机是进程启动、MQTT 连上后的追赶、状态变化，以及已经写在 SQLite 里的下一次检查时间。独立报告任务只在周期到期或生成失败重试（间隔 5 分钟）时查库：按车辆、结束时间范围读取本期与上期的行程及充电汇总，再查询最早记录时间，不读取轨迹和充电采样。常规定时器最多每分钟检查本地 SQLite 发件箱，以接收手动生成的待推送报告。
 
 主题（`CAR_ID` 默认 `1`；`MQTT_NAMESPACE` 非空时插在 `teslamate/` 和 `cars/` 之间）：
 
@@ -121,6 +160,8 @@ OUTING_GAP_MINUTES=10
 MIN_PUSH_DISTANCE_KM=0.3
 MIN_PUSH_DURATION_MIN=2
 TRIP_LINK_TTL_DAYS=0
+REPORTS_ENABLED=true
+REPORT_HOUR=9
 TZ=Asia/Shanghai
 SQLITE_PATH=/data/teslaslip.sqlite
 LOG_LEVEL=info
@@ -151,6 +192,8 @@ LOG_LEVEL=info
 | `MIN_PUSH_DISTANCE_KM` | `0.3` | 挪车距离门槛 |
 | `MIN_PUSH_DURATION_MIN` | `2` | 挪车时长门槛 |
 | `TRIP_LINK_TTL_DAYS` | `0` | `0` 表示链接不过期 |
+| `REPORTS_ENABLED` | `true` | 自动生成周报、月报和年报；支持 `true` / `false` / `1` / `0` |
+| `REPORT_HOUR` | `9` | 上海时间的报告推送小时，0–23 |
 | `TZ` | `Asia/Shanghai` | 页面时区 |
 | `SQLITE_PATH` | `/data/teslaslip.sqlite` | 水位、链接和发件箱 |
 | `LOG_LEVEL` | `info` | 日志级别 |
@@ -237,6 +280,8 @@ app/db.py            SQLite
 app/bark.py          Bark 文案和 HTTP
 app/pages.py         页面数据
 app/charts.py        图表序列、峰谷抽稀和速度时长统计
+app/reports.py       报告周期、汇总快照和持久化调度
+app/report.py        手动生成报告的命令入口
 app/geo.py           WGS-84 转 GCJ-02，轨迹抽稀
 app/webassets.py     前端构建产物
 app/templates/       出门页、充电页、设置页

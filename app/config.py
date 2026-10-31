@@ -45,6 +45,13 @@ def _float(name: str, default: float) -> float:
     return float(value.strip())
 
 
+def _bool(name: str, default: bool) -> bool:
+    value = _text(name, str(default)).lower()
+    if value not in {"true", "false", "1", "0"}:
+        raise ConfigError(f"{name} 必须为 true、false、1 或 0")
+    return value in {"true", "1"}
+
+
 @dataclass(frozen=True)
 class Settings:
     public_base_url: str
@@ -69,6 +76,12 @@ class Settings:
     sqlite_path: str = "/data/teslaslip.sqlite"
     log_level: str = "info"
     tz: str = "Asia/Shanghai"
+    reports_enabled: bool = True
+    report_hour: int = 9
+
+    def __post_init__(self) -> None:
+        if not 0 <= self.report_hour <= 23:
+            raise ConfigError("REPORT_HOUR 必须在 0 到 23 之间")
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -95,6 +108,8 @@ class Settings:
             sqlite_path=_text("SQLITE_PATH", "/data/teslaslip.sqlite"),
             log_level=_text("LOG_LEVEL", "info").lower(),
             tz=_text("TZ", "Asia/Shanghai"),
+            reports_enabled=_bool("REPORTS_ENABLED", True),
+            report_hour=_int("REPORT_HOUR", 9),
         )
 
 

@@ -1,4 +1,4 @@
-"""MQTT 沿、安静定时器和 Bark 发件箱。定时器不扫库。"""
+"""MQTT 沿、安静定时器、报告调度和 Bark 发件箱。"""
 
 from __future__ import annotations
 
@@ -31,6 +31,7 @@ from app.mqtt import (
 from app.outing import NEED_MORE, advance_watermark, is_pure_shuffle, plan_outings, select_preview
 from app.pages import expiry_from
 from app.redact import SecretVault, log_event
+from app.reports import ReportService
 
 preview_logger = logging.getLogger("teslaslip.preview")
 preview_logger.setLevel(logging.INFO)
@@ -61,6 +62,7 @@ class Runtime:
         self.clock = clock or SystemClock()
         self.vault = vault or SecretVault()
         self.enable_tasks = enable_tasks
+        self.reports = ReportService(settings, store, teslamate)
         self.mqtt_connected = False
         self.preview_url: str | None = None
         self._session = MqttSession()
@@ -78,6 +80,7 @@ class Runtime:
 
     async def startup(self) -> None:
         self.store.init()
+        self.reports.initialize(self.clock.now())
         drive_was_new = self._ensure_watermark("drive_watermark", self.teslamate.max_ended_drive_id)
         self._ensure_watermark("charge_watermark", self.teslamate.max_ended_charge_id)
         self._session = MqttSession(
@@ -167,6 +170,27 @@ class Runtime:
             except TimeoutError:
                 pass
 
+    async def on_reports(self) -> None:
+        await asyncio.to_thread(self.reports.generate_due, self.clock.now())
+        self._signal()
+        await self.on_timer()
+
+    async def report_loop(self) -> None:
+        while not self._stop.is_set():
+            try:
+                await self.on_reports()
+                delay = max((self.reports.next_due(self.clock.now()) - self.clock.now()).total_seconds(), 1)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                log_event("报告生成失败，稍后重试", error_type=type(exc).__name__)
+                self._signal()
+                delay = 300
+            try:
+                await asyncio.wait_for(self._stop.wait(), timeout=delay)
+            except TimeoutError:
+                pass
+
     def _seconds_until_next(self) -> float | None:
         moments: list[datetime] = []
         pending = self.store.get_pending_outing()
@@ -179,8 +203,8 @@ class Runtime:
         if outbox_at:
             moments.append(outbox_at)
         if not moments:
-            return None
-        return max((min(moments) - self.clock.now()).total_seconds(), 0.0)
+            return 60.0
+        return min(max((min(moments) - self.clock.now()).total_seconds(), 0.0), 60.0)
 
     def _signal(self) -> None:
         self._wake.set()
@@ -426,6 +450,8 @@ class Runtime:
             if link.kind == "drive":
                 self.store.mark_drives(link.drive_ids, link.token, "pushed")
                 self._advance_drive_watermark()
+            elif link.kind == "report":
+                self.store.mark_report_sent(link.token, self.clock.now())
             elif link.charge_id is not None:
                 self.store.mark_charge(link.charge_id, link.token)
                 self._advance_charge_watermark()
@@ -440,6 +466,12 @@ class Runtime:
                 raise BarkError("missing drive")
             title, body = summarize_drive_notification(drives)
             url = page_url(base, "d", link.token)
+        elif link.kind == "report":
+            report = self.store.get_report(link.token)
+            if report is None:
+                raise BarkError("missing report")
+            title, body = report["title"], report["notification_body"]
+            url = page_url(base, "r", link.token)
         else:
             charge = self.teslamate.charge_by_id(self.settings.car_id, int(link.charge_id or 0))
             if charge is None:

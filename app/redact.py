@@ -25,7 +25,7 @@ SENSITIVE_FIELDS = {
 _COORD = re.compile(
     r'(?i)("?(?:latitude|longitude|lat|lng|lon)"?\s*[:=]\s*)-?\d+(?:\.\d+)?'
 )
-_TOKEN_PATH = re.compile(r"/(d|c)/[A-Za-z0-9_-]{8,}")
+_TOKEN_PATH = re.compile(r"/(d|c|r)/[A-Za-z0-9_-]{8,}")
 
 
 class SecretVault:

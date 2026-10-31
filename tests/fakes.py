@@ -143,6 +143,18 @@ class MemoryTeslaMate:
         self.write_attempts.append(sql)
         raise ReadOnlyError("只读账号拒绝写入")
 
+    def report_records(self, car_id: int, start: datetime, end: datetime):
+        self.query_calls += 1
+        drives = [drive for drive in self.drives if drive.end_date is not None and start <= drive.end_date < end]
+        charges = [
+            {"id": charge.id, "start_date": charge.start_date, "end_date": charge.end_date,
+             "duration_min": charge.duration_min, "charge_energy_added": charge.charge_energy_added,
+             "cost": charge.cost, "geofence_name": charge.geofence}
+            for charge in self.charges if charge.end_date is not None and start <= charge.end_date < end
+        ]
+        dates = [record.start_date for record in [*self.drives, *self.charges]]
+        return drives, charges, min(dates) if dates else None
+
 
 def make_settings(tmp_path, **overrides) -> Settings:
     values = dict(

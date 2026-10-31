@@ -120,6 +120,20 @@
     font-variant-numeric: tabular-nums;
   }
   .hero-meta { margin: 6px 0 0; font-size: 0.95rem; }
+  .report-intro { padding-bottom: 18px; }
+  .report-summary { margin: 0; font-size: 1.25rem; font-weight: 600; }
+  .report-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .report-metric { padding: 16px; min-width: 0; }
+  .report-value { margin: 8px 0; font-size: 1.35rem; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .report-metric .footnote { margin: 0; }
+  .report-trends { padding: 12px 0; }
+  .report-chart-label { margin: 4px 16px 0; font-size: 0.875rem; color: var(--secondary); }
+  .report-chart { display: block; width: 100%; height: auto; }
+  .report-chart text { fill: var(--secondary); font-size: 12px; }
+  .report-axis { stroke: var(--separator); }
+  .report-bar { fill: var(--accent); }
+  .report-bar[data-series="energy"] { opacity: 0.65; }
+  .report-details summary { cursor: pointer; padding: 8px 16px; color: var(--accent); }
   .route { position: relative; margin-top: 18px; padding-left: 22px; }
   .stop { position: relative; padding-bottom: 14px; }
   .stop:last-child { padding-bottom: 0; }

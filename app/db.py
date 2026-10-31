@@ -60,6 +60,17 @@ CREATE TABLE IF NOT EXISTS decided_charges (
     charge_id INTEGER PRIMARY KEY,
     token TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS reports (
+    token TEXT PRIMARY KEY,
+    car_id INTEGER NOT NULL,
+    kind TEXT NOT NULL,
+    period_start TEXT NOT NULL,
+    period_end TEXT NOT NULL,
+    snapshot TEXT NOT NULL,
+    sent_at TEXT,
+    UNIQUE(car_id, kind, period_start)
+);
 """
 
 
@@ -228,6 +239,64 @@ class Store:
         if row is None:
             return None
         return self._link(row)
+
+    def get_report(self, token: str) -> dict | None:
+        row = self._read("SELECT snapshot FROM reports WHERE token = ?", (token,))
+        return json.loads(row["snapshot"]) if row else None
+
+    def find_report(self, car_id: int, kind: str, start: datetime) -> str | None:
+        row = self._read(
+            "SELECT token FROM reports WHERE car_id = ? AND kind = ? AND period_start = ?",
+            (car_id, kind, _iso(start)),
+        )
+        return row["token"] if row else None
+
+    def save_report(
+        self, *, token: str, car_id: int, kind: str, start: datetime, end: datetime,
+        snapshot: dict, created_at: datetime, expires_at: datetime | None,
+        enqueue: bool, cursor_key: str | None = None,
+    ) -> str:
+        def write() -> None:
+            nonlocal token
+            existing = self._conn.execute(
+                "SELECT token FROM reports WHERE car_id = ? AND kind = ? AND period_start = ?",
+                (car_id, kind, _iso(start)),
+            ).fetchone()
+            if existing:
+                token = existing["token"]
+            else:
+                self._conn.execute(
+                    "INSERT INTO links(token, kind, drive_ids, created_at, expires_at) "
+                    "VALUES (?, 'report', '[]', ?, ?)",
+                    (token, _iso(created_at), _iso(expires_at)),
+                )
+                self._conn.execute(
+                    "INSERT INTO reports(token, car_id, kind, period_start, period_end, snapshot) "
+                    "VALUES (?, ?, ?, ?, ?, ?)",
+                    (token, car_id, kind, _iso(start), _iso(end), json.dumps(snapshot, ensure_ascii=False, allow_nan=False)),
+                )
+            if enqueue:
+                self._conn.execute(
+                    "INSERT OR IGNORE INTO bark_outbox(token, next_attempt_at, attempts, created_at) "
+                    "SELECT token, ?, 0, ? FROM reports WHERE token = ? AND sent_at IS NULL",
+                    (_iso(created_at), _iso(created_at), token),
+                )
+            if cursor_key:
+                self._conn.execute(
+                    "INSERT INTO meta(key, value) VALUES (?, ?) "
+                    "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                    (cursor_key, _iso(start)),
+                )
+
+        self._write(write)
+        return token
+
+    def mark_report_sent(self, token: str, now: datetime) -> None:
+        def write() -> None:
+            self._conn.execute("UPDATE reports SET sent_at = ? WHERE token = ?", (_iso(now), token))
+            self._conn.execute("DELETE FROM bark_outbox WHERE token = ?", (token,))
+
+        self._write(write)
 
     def find_drive_link(self, drive_ids: list[int]) -> Link | None:
         wanted = sorted(drive_ids)

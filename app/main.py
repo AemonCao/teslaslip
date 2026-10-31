@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import asyncio
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -37,10 +38,10 @@ def create_app(runtime: Runtime) -> FastAPI:
         await runtime.startup()
         tasks = []
         if runtime.enable_tasks:
-            import asyncio
-
             tasks.append(asyncio.create_task(runtime.mqtt_loop()))
             tasks.append(asyncio.create_task(runtime.timer_loop()))
+            if runtime.settings.reports_enabled:
+                tasks.append(asyncio.create_task(runtime.report_loop()))
         try:
             yield
         finally:
@@ -48,7 +49,7 @@ def create_app(runtime: Runtime) -> FastAPI:
             for task in tasks:
                 task.cancel()
             for task in tasks:
-                with contextlib.suppress(Exception):
+                with contextlib.suppress(Exception, asyncio.CancelledError):
                     await task
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
@@ -104,6 +105,19 @@ def create_app(runtime: Runtime) -> FastAPI:
             return HTMLResponse(NOT_FOUND, status_code=404)
         page = build_charge_page(charge, runtime.settings)
         return templates.TemplateResponse(request, "charge.html", {"v": page})
+
+    @app.get("/r/{token}", response_class=HTMLResponse)
+    def report_page(request: Request, token: str):
+        link = runtime.store.get_link(token)
+        if link is None or link.kind != "report" or link_expired(link.expires_at, runtime.clock.now()):
+            return HTMLResponse(NOT_FOUND, status_code=404)
+        report = runtime.store.get_report(token)
+        if report is None:
+            return HTMLResponse(NOT_FOUND, status_code=404)
+        return templates.TemplateResponse(
+            request, "report.html", {"v": report},
+            headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "X-Robots-Tag": "noindex, nofollow"},
+        )
 
     @app.get("/settings", response_class=HTMLResponse)
     def settings_page(request: Request):

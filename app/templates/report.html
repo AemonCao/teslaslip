@@ -1,3 +1,4 @@
+{% from "_icons.html" import icon %}
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -32,6 +33,12 @@
         <p class="footnote">{{ metric.note }}</p>
       </div>
       {% endfor %}
+    </section>
+    <section class="group report-highlights">
+      <h2>本期亮点</h2>
+      <div class="card highlights-card">
+        {% for highlight in v.highlights %}<p class="note">{{ icon('report') }}<span>{{ highlight }}</span></p>{% else %}<p class="note">记录不足，暂无亮点。</p>{% endfor %}
+      </div>
     </section>
     <section class="group">
       <h2>{{ '每月' if v.kind == 'year' else '每日' }}趋势</h2>
@@ -74,12 +81,6 @@
         <div class="row"><span>费用完整度</span><span class="value">{{ v.cost_coverage }}</span></div>
       </div>
     </section>
-    <section class="group">
-      <h2>本期亮点</h2>
-      <div class="card">
-        {% for highlight in v.highlights %}<p class="note">{{ highlight }}</p>{% else %}<p class="note">记录不足，暂无亮点。</p>{% endfor %}
-      </div>
-    </section>
     {% if v.places %}
     <section class="group">
       <h2>常去地点 · 按行程到达次数</h2>
@@ -94,13 +95,13 @@
       <div class="card"><p class="note">{{ v.cities | join(' · ') }}</p></div>
     </section>
     {% endif %}
-    <section class="group">
-      <h2>统计说明</h2>
+    <details class="group detail-group">
+      <summary><h2>统计说明</h2>{{ icon('chevron') }}</summary>
       <div class="card">
         {% for note in v.notes %}<p class="note">{{ note }}</p>{% endfor %}
         <p class="note">生成于 {{ v.generated_text }}，此页为生成时快照，之后补录的数据不会改变本报告。</p>
       </div>
-    </section>
+    </details>
   </main>
 </div>
 </body>

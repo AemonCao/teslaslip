@@ -6,7 +6,7 @@
   {% include "_theme_head.html" %}
   <title>登录 · TeslaSlip</title>
 </head>
-<body>
+<body data-page="login">
 <div class="sheet">
   <header class="bar">
     <div class="bar-row">
@@ -17,6 +17,7 @@
   </header>
   <main class="portal-main">
     <section class="card portal-card">
+      <p class="kicker login-welcome">欢迎回来</p>
       <h2>登录</h2>
       {% if error %}<p class="portal-message" role="alert">{{ error }}</p>{% endif %}
       {% if enabled %}

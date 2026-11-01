@@ -103,7 +103,7 @@ function back(): void {
     <Teleport to="#settings-back-slot">
       <button type="button" class="theme-toggle" @click="back">返回</button>
     </Teleport>
-    <main>
+    <main class="settings-main">
       <section class="group">
         <h2>外观</h2>
         <div class="card">

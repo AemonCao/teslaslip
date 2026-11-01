@@ -1,4 +1,5 @@
 {% from "_rows.html" import rows %}
+{% from "_icons.html" import icon %}
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -31,9 +32,11 @@
   </header>
   <main>
     {% include "_portal_nav.html" %}
-    <section class="hero">
+    <div class="journey-overview">
+    <section class="hero journey-hero">
+      <p class="metric-label">{{ icon('drive') }}本次行驶</p>
       <p class="hero-metric">{{ v.distance_text }}</p>
-      <p class="hero-meta">驾驶 {{ v.driving_text }} · 出门 {{ v.elapsed_text }}</p>
+      <div class="hero-facts"><div><p class="kicker">驾驶</p><p>{{ v.driving_text }}</p></div><div><p class="kicker">出门用时</p><p>{{ v.elapsed_text }}</p></div></div>
       <div class="route">
         <div class="stop">
           <p class="kicker">起点</p>
@@ -48,6 +51,7 @@
       </div>
     </section>
     <section class="card map-card" data-section="map">
+      <div class="map-heading"><span>{{ icon('pin') }}行程轨迹</span><span class="kicker">路线回顾</span></div>
       {% if v.amap_key %}
         <div id="drive-map-app" data-amap-src="{{ v.amap_src | safe }}"></div>
         <script id="map-data" type="application/json">{{ v.map_json | safe }}</script>
@@ -96,6 +100,7 @@
         {% endif %}
       </div>
     </section>
+    </div>
     {% include "_charts.html" %}
     <section class="group" data-section="driving">
       <h2>驾驶</h2>
@@ -109,18 +114,18 @@
         {{ rows(v.stats, ["起点额定续航", "终点额定续航", "额定续航差", "起点理想续航", "终点理想续航", "理想续航差", "起点电量", "起点可用电量", "终点电量", "终点可用电量"]) }}
       </div>
     </section>
-    <section class="group" data-section="odometer">
-      <h2>里程</h2>
+    <details class="group detail-group" data-section="odometer">
+      <summary><h2>里程</h2>{{ icon('chevron') }}</summary>
       <div class="card">
         {{ rows(v.stats, ["起点里程表", "终点里程表"]) }}
       </div>
-    </section>
-    <section class="group" data-section="environment">
-      <h2>环境</h2>
+    </details>
+    <details class="group detail-group" data-section="environment">
+      <summary><h2>环境</h2>{{ icon('chevron') }}</summary>
       <div class="card">
         {{ rows(v.stats, ["车外温度", "车内温度"]) }}
       </div>
-    </section>
+    </details>
     <section class="group" data-section="vehicle">
       <h2>车辆</h2>
       <div class="card">

@@ -1,4 +1,5 @@
 {% from "_rows.html" import rows, value %}
+{% from "_icons.html" import icon %}
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -21,11 +22,15 @@
   </header>
   <main>
     {% include "_portal_nav.html" %}
-    <section class="hero">
+    <div class="journey-overview">
+    <section class="hero journey-hero">
+      <p class="metric-label">{{ icon('charge') }}本次充入</p>
       <p class="hero-metric">{{ value(v.stats, "加入电量") }}</p>
-      <p class="hero-meta">{{ value(v.stats, "时长") }} · 电量 {{ value(v.stats, "起点电量") }} → {{ value(v.stats, "结束电量") }}</p>
+      <div class="hero-facts"><div><p class="kicker">充电用时</p><p>{{ value(v.stats, "时长") }}</p></div><div><p class="kicker">电量变化</p><p>{{ value(v.stats, "起点电量") }} → {{ value(v.stats, "结束电量") }}</p></div></div>
+      <div class="charge-location">{{ icon('pin') }}<div><p class="place">{{ v.title }}</p><p class="addr">{{ v.address }}</p></div></div>
     </section>
     <section class="card map-card" data-section="map">
+      <div class="map-heading"><span>{{ icon('pin') }}充电位置</span><span class="kicker">停靠一刻</span></div>
       {% if v.amap_key %}
         <div id="charge-map-app" data-amap-src="{{ v.amap_src | safe }}"></div>
         <script id="charge-point" type="application/json">{{ v.point_json | safe }}</script>
@@ -44,6 +49,7 @@
         {% endif %}
       {% endif %}
     </section>
+    </div>
     <section class="group">
       <h2>充电</h2>
       <div class="card">
@@ -51,8 +57,8 @@
       </div>
     </section>
     {% include "_charts.html" %}
-    <section class="group" data-section="samples">
-      <h2>采样</h2>
+    <details class="group detail-group" data-section="samples">
+      <summary><h2>采样</h2>{{ icon('chevron') }}</summary>
       <div class="card">
         {% if v.sample_count == 0 %}
         <p class="note">没有充电采样</p>
@@ -60,7 +66,7 @@
         {{ rows(v.charger, ["充电器功率", "电压", "电流", "相数", "线缆", "快充", "快充品牌", "快充类型"]) }}
         {% endif %}
       </div>
-    </section>
+    </details>
   </main>
 </div>
 </body>

@@ -1,0 +1,14 @@
+{% macro icon(name) -%}
+<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  {% if name == 'drive' %}<path d="m5 7 2-4h10l2 4 2 3v8H3v-8l2-3Z"/><path d="M5 7h14M7 14h.01M17 14h.01M6 18v3M18 18v3"/>
+  {% elif name == 'charge' %}<path d="m13 2-9 12h7l-1 8 10-12h-8l1-8Z"/>
+  {% elif name == 'report' %}<rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 16v-3M12 16V8M16 16v-5"/>
+  {% elif name == 'settings' %}<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="var(--card)"/><circle cx="15" cy="17" r="3" fill="var(--card)"/>
+  {% elif name == 'filter' %}<path d="M4 5h16M7 12h10M10 19h4"/>
+  {% elif name == 'arrow' %}<path d="M5 12h14m-5-5 5 5-5 5"/>
+  {% elif name == 'back' %}<path d="M19 12H5m5-5-5 5 5 5"/>
+  {% elif name == 'pin' %}<path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z"/><circle cx="12" cy="10" r="2"/>
+  {% elif name == 'chevron' %}<path d="m9 5 7 7-7 7"/>
+  {% endif %}
+</svg>
+{%- endmacro %}

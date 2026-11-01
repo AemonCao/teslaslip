@@ -1,0 +1,10 @@
+<div class="portal-detail-nav">
+  <a href="/">{{ '返回历史总览' if portal_authenticated else '登录查看历史记录' }}</a>
+  {% if share_action and portal_authenticated %}
+  <form method="post" action="{{ share_action }}">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button type="submit" class="portal-link">生成分享链接</button>
+  </form>
+  <p class="footnote">生成后打开分享页，复制地址即可分享。{% if share_days > 0 %}链接有效期 {{ share_days }} 天。{% else %}当前配置为长期有效。{% endif %}</p>
+  {% endif %}
+</div>

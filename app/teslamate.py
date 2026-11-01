@@ -133,6 +133,27 @@ ORDER BY d.end_date DESC, d.id DESC
 LIMIT %(limit)s
 """
 
+HISTORY_DRIVES_SQL = f"""
+SELECT {DRIVE_COLUMNS}
+{DRIVE_JOINS}
+WHERE d.car_id = %(car_id)s AND d.end_date IS NOT NULL
+  AND d.end_date >= %(start_date)s AND d.end_date < %(end_date)s
+ORDER BY d.end_date DESC, d.id DESC
+LIMIT %(limit)s OFFSET %(offset)s
+"""
+
+HISTORY_CHARGES_SQL = """
+SELECT c.id, c.start_date, c.end_date, c.duration_min, c.charge_energy_added,
+       c.cost, g.name AS geofence_name, a.display_name
+FROM charging_processes c
+LEFT JOIN geofences g ON g.id = c.geofence_id
+LEFT JOIN addresses a ON a.id = c.address_id
+WHERE c.car_id = %(car_id)s AND c.end_date IS NOT NULL
+  AND c.end_date >= %(start_date)s AND c.end_date < %(end_date)s
+ORDER BY c.end_date DESC, c.id DESC
+LIMIT %(limit)s OFFSET %(offset)s
+"""
+
 POSITIONS_SQL = """
 SELECT
   date,
@@ -271,6 +292,8 @@ ALL_SQL = (
     DRIVES_AFTER_SQL,
     DRIVE_BY_ID_SQL,
     RECENT_DRIVES_SQL,
+    HISTORY_DRIVES_SQL,
+    HISTORY_CHARGES_SQL,
     POSITIONS_SQL,
     CHARGES_AFTER_SQL,
     CHARGE_BY_ID_SQL,
@@ -479,6 +502,17 @@ class PostgresTeslaMate:
             return True
         except Exception:
             return False
+
+    def history_records(self, kind: str, car_id: int, start: datetime, end: datetime, limit: int, offset: int):
+        if kind not in {"drives", "charges"}:
+            raise ValueError("未知历史类型")
+        if not 1 <= limit <= 51 or not 0 <= offset <= 200000:
+            raise ValueError("历史分页超出范围")
+        rows = self._fetch(HISTORY_DRIVES_SQL if kind == "drives" else HISTORY_CHARGES_SQL, {
+            "car_id": car_id, "start_date": as_naive_utc(start), "end_date": as_naive_utc(end),
+            "limit": limit, "offset": offset,
+        })
+        return [drive_from_row(row) for row in rows] if kind == "drives" else [charge_from_row(row, []) for row in rows]
 
     def report_records(self, car_id: int, start: datetime, end: datetime):
         params = {

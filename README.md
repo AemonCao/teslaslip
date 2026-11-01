@@ -1,6 +1,6 @@
 # TeslaSlip
 
-停车或充电结束后，TeslaSlip 生成一张只能靠链接打开的中文总结页，并用 [Bark](https://github.com/Finb/bark-server) 推到手机。
+停车或充电结束后，TeslaSlip 生成一张可用随机链接分享的中文总结页，并用 [Bark](https://github.com/Finb/bark-server) 推到手机。登录后的历史总览可查看已生成报告、全部已结束行程和充电记录。
 
 行程和充电数据来自 TeslaMate 的 Postgres。单次总结由 TeslaMate 已经发到 MQTT 上的车辆状态触发；周报、月报和年报由独立定时任务生成。本服务对数据库只有只读查询，不改 TeslaMate，也不接 Tesla 账号。
 
@@ -71,7 +71,7 @@ SQLite 里的 `drive_watermark` 和 `charge_watermark` 是已经处理过的最�
 
 命令输出完整私有链接，请妥善保存。默认仅生成不推送；`--push` 加入发件箱，由使用同一 SQLite 的运行中服务在约一分钟内接手。对已发送报告重复 `--push` 不重发。NAS 容器内可将解释器改为 `python`。命令同样会写 SQLite，NAS 上执行仍遵守无校验盘的写盘确认要求。
 
-报告链接沿用 `TRIP_LINK_TTL_DAYS`，过期返回 404；同周期重复生成复用原链接与快照，不刷新有效期。数据库后续补录或修改费用不会改变已生成报告。通知只含日期和汇总数字，地点只显示在私有网页里；没有公开报告列表。
+报告链接沿用 `TRIP_LINK_TTL_DAYS`，匿名访问过期链接返回 404，登录后仍可查看；同周期重复生成复用原链接与快照，不刷新有效期。数据库后续补录或修改费用不会改变已生成报告。通知只含日期和汇总数字，地点只显示在详情页里；报告列表仅登录后可见。
 
 ## 页面
 
@@ -82,13 +82,35 @@ SQLite 里的 `drive_watermark` 和 `charge_watermark` 是已经处理过的最�
 | `/r/{token}` | 周报、月报、年报固定快照 |
 | `/settings` | 这台手机的显示设置 |
 | `/healthz` | 健康检查 |
-| `/` | 返回「未找到」 |
+| `/` | 登录后的报告、行程、充电历史总览 |
+| `/login` | 管理员登录，成功后返回原页面 |
+| `/logout` | POST 退出并撤销当前会话 |
+| `/history/drives/{id}` | 仅登录可见的历史单段行程 |
+| `/history/charges/{id}` | 仅登录可见的历史充电详情 |
 
-`token` 是 16 字节 URL-safe 随机串。地址里没有 drive id 或充电 id。未知链接、过期链接、以及库里对不上的记录，都返回 404，正文是「未找到」。
+分享链接中的 `token` 是 16 字节 URL-safe 随机串，不包含 drive id 或充电 id。未知链接及库里对不上的记录返回 404，正文是「未找到」。未登录打开过期链接时返回 404 和登录入口，不读取或展示详情；登录成功后回到原链接。
 
-`TRIP_LINK_TTL_DAYS` 为 `0` 时链接一直有效。正整数表示从创建起多少天，超过这个时间再打开返回 404。
+`TRIP_LINK_TTL_DAYS` 为 `0` 时链接一直有效。正整数表示从创建起允许匿名访问的天数。登录用户不受链接有效期限制，过期的链接映射与报告快照保留。修改此配置只影响之后新建的链接，不会追溯修改已有链接的有效期。
 
-没有登录，没有历史列表，没有管理页，也没有 OpenAPI 文档。`/settings` 只改当前浏览器里的主题、地图和显示哪些块，不改服务配置。
+历史总览支持类型、年份、日期筛选，每页 20 条，按时间倒序。报告按周期开始日筛选，行程和充电按结束日筛选，日期包含所选结束日。行程列表逐条展示 TeslaMate 中已结束的 `drives`，包括未推送及挪车记录；通知中的出门总结继续沿用原有合并规则。列表仅查询汇总字段，不读取轨迹或充电采样。历史详情中的「生成分享链接」会新建随机链接并打开分享页，复制浏览器地址即可分享；单纯浏览历史不会生成分享链接、发送 Bark 或改动处理水位。每次点击均生成独立链接，不延长旧链接有效期。
+
+分享页只包含当前记录及登录总览入口，不提供其他记录的链接。没有 OpenAPI 文档。`/settings` 只改当前浏览器里的主题、地图和显示哪些块，不改服务配置。
+
+## 启用历史总览
+
+第一版为单管理员账号。先在本机交互生成密码哈希，密码至少 12 个字符，不通过命令行参数传入：
+
+```powershell
+.\.venv\Scripts\python -m app.auth
+```
+
+将输出的完整哈希填入部署环境的 `ADMIN_PASSWORD_HASH`，使用单引号包住值，防止 Docker Compose 展开 `$`；不要提交实际哈希或密码。`ADMIN_USERNAME` 默认为 `admin`。应用本身不自动加载本机 `.env`，本机运行时需通过环境变量注入；Compose 使用现有 `env_file`。
+
+哈希为空时登录及总览关闭，显示未配置提示并返回 503，原有单页和通知继续工作。密码采用带随机盐的 scrypt 哈希，SQLite 只保存随机会话令牌的 SHA-256 摘要。登录状态持续 7 天、重启后保留，退出立即撤销当前会话；更换账号或密码哈希并重启服务后，旧会话失效。全局每 5 分钟最多允许 10 次登录尝试，计数跨重启保留；登录、退出和分享操作均校验表单防伪令牌。
+
+Cookie 使用 `HttpOnly`、`SameSite=Lax`；`PUBLIC_BASE_URL` 为 HTTPS 时额外启用 `Secure`。外网登录使用 HTTPS，并让 `PUBLIC_BASE_URL` 与浏览器使用的入口一致；保留 HTTP 支持用于现有局域网入口。私有页面和分享详情均设置 `Cache-Control: no-store`、`Referrer-Policy: no-referrer`、禁止搜索索引及嵌入 iframe。
+
+**需要分享自动到期时，将 `TRIP_LINK_TTL_DAYS` 配为正整数，例如 `7`。默认 `0` 表示永久有效，已有永久链接也不会因新配置自动到期。**
 
 时间按 `Asia/Shanghai` 显示。TeslaMate 里的 `timestamp without time zone` 按 UTC 理解。坐标在服务端从 WGS-84 转成 GCJ-02 再交给页面，中国境外的点保持原坐标。
 
@@ -103,6 +125,8 @@ SQLite 里的 `drive_watermark` 和 `charge_watermark` 是已经处理过的最�
 ## Bark
 
 请求是 `POST {BARK_URL}/push`，JSON 里带 `device_key`、标题、正文、页面绝对地址，`group` 为 `teslaslip`，`isArchive` 为 `1`，`level` 为 `active`。
+
+行程、充电和报告通知均附带「查看详情」「历史总览」两个 Markdown 链接；直接点击通知仍打开本次详情，展开通知或进入 Bark 历史可选择总览入口。纯文本 `body` 同时保留摘要和总览完整地址，供不支持 Markdown 的客户端显示。总览链接不携带登录凭证，未登录时需要验证账号，不会因通知泄露其他记录。
 
 出门标题：两端围栏都有时为「起点围栏 → 终点围栏」；只有一端就写那一个名字；都没有则为「出门 {里程} km」。正文是里程、驾驶时长、额定续航差、结束时的额定续航。
 
@@ -145,6 +169,8 @@ DATABASE_URL=postgresql://teslaslip_ro:替换成密码@192.168.1.223:45432/tesla
 MQTT_USERNAME=替换成用户名
 MQTT_PASSWORD=替换成密码
 BARK_DEVICE_KEY=替换成设备密钥
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD_HASH=''
 
 BIND_HOST=0.0.0.0
 BIND_PORT=8791
@@ -178,6 +204,8 @@ LOG_LEVEL=info
 | `MQTT_USERNAME` | 必填 | MQTT 用户名 |
 | `MQTT_PASSWORD` | 必填 | MQTT 密码 |
 | `BARK_DEVICE_KEY` | 必填 | Bark 设备密钥 |
+| `ADMIN_USERNAME` | `admin` | 历史总览管理员账号 |
+| `ADMIN_PASSWORD_HASH` | 空 | `python -m app.auth` 生成的 scrypt 哈希；空时关闭登录与总览 |
 | `BIND_HOST` | `0.0.0.0` | 监听地址 |
 | `BIND_PORT` | `8791` | 监听端口 |
 | `MQTT_HOST` | `192.168.1.217` | broker 地址 |
@@ -191,7 +219,7 @@ LOG_LEVEL=info
 | `OUTING_GAP_MINUTES` | `10` | 两段间隔小于该值才算同一次出门 |
 | `MIN_PUSH_DISTANCE_KM` | `0.3` | 挪车距离门槛 |
 | `MIN_PUSH_DURATION_MIN` | `2` | 挪车时长门槛 |
-| `TRIP_LINK_TTL_DAYS` | `0` | `0` 表示链接不过期 |
+| `TRIP_LINK_TTL_DAYS` | `0` | 匿名分享有效天数；`0` 永久，登录后不受限；只影响新链接 |
 | `REPORTS_ENABLED` | `true` | 自动生成周报、月报和年报；支持 `true` / `false` / `1` / `0` |
 | `REPORT_HOUR` | `9` | 上海时间的报告推送小时，0–23 |
 | `TZ` | `Asia/Shanghai` | 页面时区 |
@@ -287,8 +315,7 @@ app/webassets.py     前端构建产物
 app/templates/       出门页、充电页、设置页
 web/                 Vue 3 岛屿、主题脚本和样式
 tests/               单元测试和验收测试
-开发计划.md          实现规格
-图表开发计划.md      图表功能的阶段任务与验收清单
+开发计划.md          尚未实现的候选功能
 ```
 
 ## 范围

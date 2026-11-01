@@ -71,6 +71,12 @@ class MemoryTeslaMate:
         self.query_calls += 1
         return self.profile
 
+    def history_records(self, kind: str, car_id: int, start: datetime, end: datetime, limit: int, offset: int):
+        self.query_calls += 1
+        records = self.drives if kind == "drives" else self.charges
+        rows = [record for record in records if record.end_date is not None and start <= record.end_date < end]
+        return sorted(rows, key=lambda record: (record.end_date, record.id), reverse=True)[offset:offset + limit]
+
     def ping(self) -> bool:
         return self.ping_ok
 

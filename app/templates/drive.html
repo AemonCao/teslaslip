@@ -30,6 +30,7 @@
     <p class="sub">{{ v.start_text }} – {{ v.end_text }}</p>
   </header>
   <main>
+    {% include "_portal_nav.html" %}
     <section class="hero">
       <p class="hero-metric">{{ v.distance_text }}</p>
       <p class="hero-meta">驾驶 {{ v.driving_text }} · 出门 {{ v.elapsed_text }}</p>

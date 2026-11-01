@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {% include "_theme_head.html" %}
+  <title>历史总览 · TeslaSlip</title>
+</head>
+<body>
+<div class="sheet">
+  <header class="bar">
+    <div class="bar-row">
+      <div class="titles"><p class="eyebrow">TeslaSlip · 私有空间</p><h1>历史总览</h1></div>
+      {% include "_theme_toggle.html" %}
+    </div>
+    <p class="sub">报告、行程和充电记录，按时间回看</p>
+  </header>
+  <main class="portal-main">
+    <div class="portal-toolbar">
+      <a href="/settings">显示设置</a>
+      <form method="post" action="/logout"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" class="portal-link">退出登录</button></form>
+    </div>
+    <nav class="portal-tabs" aria-label="记录类型">
+      {% for value, label in [('reports', '报告'), ('drives', '行程'), ('charges', '充电')] %}
+      <a href="/?tab={{ value }}" {% if tab == value %}aria-current="page"{% endif %}>{{ label }}</a>
+      {% endfor %}
+    </nav>
+    <section class="card portal-card">
+      <form method="get" action="/" class="portal-form">
+        <input type="hidden" name="tab" value="{{ tab }}">
+        <div class="portal-filter-row">
+          {% if tab == 'reports' %}
+          <label>报告类型<select name="kind">
+            {% for value, label in [('', '全部报告'), ('week', '周报'), ('month', '月报'), ('year', '年报')] %}
+            <option value="{{ value }}" {% if filters.kind == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select></label>
+          {% endif %}
+          <label>年份<input type="number" name="year" min="1970" max="9998" placeholder="全部年份" value="{{ filters.year }}"></label>
+        </div>
+        <div class="portal-filter-row">
+          <label>开始日期<input type="date" name="start" value="{{ filters.start }}"></label>
+          <label>结束日期<input type="date" name="end" value="{{ filters.end }}"></label>
+        </div>
+        <div class="portal-toolbar"><button type="submit" class="portal-primary">筛选</button><a href="/?tab={{ tab }}">重置</a></div>
+      </form>
+    </section>
+    {% if error %}<p class="portal-message" role="alert">{{ error }}</p>{% endif %}
+    <p class="footnote">{% if tab == 'reports' %}展示已生成报告，日期按报告周期开始日筛选。分享已过期的报告仍可登录查看。{% else %}展示 TeslaMate 中每条已结束记录，按结束日筛选。通知中的出门总结可能合并多段行程；这里逐段展示。{% endif %}</p>
+    <section class="portal-records" aria-label="历史记录">
+      {% for item in items %}
+      <a class="card portal-record" href="{{ item.url }}">
+        <div class="portal-record-heading"><h2>{{ item.title }}</h2><span class="portal-badge">{{ item.badge }}</span></div>
+        <p class="footnote">{{ item.time }}</p>
+        <p class="portal-summary">{{ item.summary }}</p>
+        <span class="portal-open">查看详情 →</span>
+      </a>
+      {% else %}
+      <div class="card portal-card"><h2>暂无记录</h2><p class="sub">当前筛选范围内没有记录，可以调整日期后再试。</p></div>
+      {% endfor %}
+    </section>
+    <nav class="portal-pagination" aria-label="分页">
+      {% if previous %}<a href="{{ previous }}">← 上一页</a>{% else %}<span></span>{% endif %}
+      <span class="footnote">第 {{ page }} 页</span>
+      {% if next %}<a href="{{ next }}">下一页 →</a>{% else %}<span></span>{% endif %}
+    </nav>
+  </main>
+</div>
+</body>
+</html>

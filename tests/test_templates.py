@@ -303,17 +303,17 @@ def test_settings_template_keeps_the_page_shell():
     assert 'name="format-detection" content="telephone=no"' in html
 
 
-def test_settings_route_returns_page_and_root_stays_missing(tmp_path):
+def test_settings_route_returns_page_and_root_requires_login(tmp_path):
     async def body():
         runtime, _tm, _bark, _clock = await boot(tmp_path)
         with TestClient(create_app(runtime)) as client:
             settings = client.get("/settings")
-            root = client.get("/")
+            root = client.get("/", follow_redirects=False)
         assert settings.status_code == 200
         assert "<h1>设置</h1>" in settings.text
         assert "只保存在这台手机上" in settings.text
         assert 'id="settings-app"' in settings.text
-        assert root.status_code == 404
-        assert root.text == "未找到"
+        assert root.status_code == 303
+        assert root.headers["location"].startswith("/login?")
 
     asyncio.run(body())

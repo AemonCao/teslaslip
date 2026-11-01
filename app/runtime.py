@@ -478,7 +478,7 @@ class Runtime:
                 raise BarkError("missing charge")
             title, body = summarize_charge_notification(charge)
             url = page_url(base, "c", link.token)
-        return envelope(self.settings.bark_device_key, title, body, url)
+        return envelope(self.settings.bark_device_key, title, body, url, overview_url=base.rstrip("/") + "/")
 
     def _advance_drive_watermark(self) -> None:
         current = self._drive_watermark()

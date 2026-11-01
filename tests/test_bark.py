@@ -74,3 +74,21 @@ def test_charge_bark_omits_street():
 
 def test_body_builder_has_no_place_argument():
     assert "路" not in drive_body(1, 2, -1, 3)
+
+
+def test_notification_includes_detail_and_overview_links_with_plain_text_fallback():
+    summary = "12.4 km，28 分钟，额定续航 -10.0 km"
+    payload = envelope("test-device", "家 → 公司", summary, "https://example.test/d/token", overview_url="https://example.test/")
+    assert payload["url"] == "https://example.test/d/token"
+    assert payload["body"] == summary + "\n历史总览：https://example.test/"
+    assert "[查看详情](https://example.test/d/token)" in payload["markdown"]
+    assert "[历史总览](https://example.test/)" in payload["markdown"]
+    assert "12\\.4 km" in payload["markdown"]
+
+
+def test_notification_escapes_markdown_content_and_link_destinations():
+    payload = envelope("test-device", "测试", "[文字](https://other.test) *标记*", "https://example.test/a(b)/d/token", overview_url="https://example.test/a(b)/")
+    assert "\\[文字\\]" in payload["markdown"]
+    assert "\\*标记\\*" in payload["markdown"]
+    assert "[查看详情](https://example.test/a%28b%29/d/token)" in payload["markdown"]
+    assert "[历史总览](https://example.test/a%28b%29/)" in payload["markdown"]

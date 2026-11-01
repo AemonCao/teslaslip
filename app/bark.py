@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import re
 from typing import Protocol
+from urllib.parse import quote
 
 import httpx
 
@@ -71,8 +73,8 @@ def summarize_charge_notification(charge: Charge) -> tuple[str, str]:
     )
 
 
-def envelope(device_key: str, title: str, body: str, url: str) -> dict[str, object]:
-    return {
+def envelope(device_key: str, title: str, body: str, url: str, *, overview_url: str | None = None) -> dict[str, object]:
+    payload = {
         "device_key": device_key,
         "title": title,
         "body": body,
@@ -81,6 +83,13 @@ def envelope(device_key: str, title: str, body: str, url: str) -> dict[str, obje
         "isArchive": 1,
         "level": "active",
     }
+    if overview_url:
+        summary = re.sub(r"([\\`*_{}\[\]()#+.!>|~-])", r"\\\1", body)
+        detail = quote(url, safe=":/?#@!$&'*+,;=%")
+        overview = quote(overview_url, safe=":/?#@!$&'*+,;=%")
+        payload["body"] = f"{body}\n历史总览：{overview_url}"
+        payload["markdown"] = f"{summary}\n\n[查看详情]({detail}) · [历史总览]({overview})"
+    return payload
 
 
 def notification_text(title: str, body: str) -> str:

@@ -20,6 +20,7 @@
     <p class="sub">{{ v.address }}</p>
   </header>
   <main>
+    {% include "_portal_nav.html" %}
     <section class="hero">
       <p class="hero-metric">{{ value(v.stats, "加入电量") }}</p>
       <p class="hero-meta">{{ value(v.stats, "时长") }} · 电量 {{ value(v.stats, "起点电量") }} → {{ value(v.stats, "结束电量") }}</p>

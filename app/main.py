@@ -14,7 +14,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import Settings, secret_values
 from app.db import Store
-from app.pages import build_charge_page, build_drive_page, link_expired
+from app.pages import link_expired
+from app.portal import Portal
 from app.redact import SecretVault, log_event, setup_logging
 from app.runtime import Runtime
 from app.teslamate import PostgresTeslaMate
@@ -22,14 +23,6 @@ from app.webassets import STATIC_DIR, WebAssets
 
 NOT_FOUND = "未找到"
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
-
-
-def _lookup_car(runtime: Runtime):
-    try:
-        return runtime.teslamate.car(runtime.settings.car_id)
-    except Exception as exc:
-        log_event("车辆型号读取失败", error_type=type(exc).__name__)
-        return None
 
 
 def create_app(runtime: Runtime) -> FastAPI:
@@ -54,6 +47,20 @@ def create_app(runtime: Runtime) -> FastAPI:
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.runtime = runtime
+    portal = Portal(runtime, templates)
+    portal.install(app)
+
+    @app.middleware("http")
+    async def private_headers(request: Request, call_next):
+        response = await call_next(request)
+        if not request.url.path.startswith("/static/"):
+            response.headers["Cache-Control"] = "no-store"
+            response.headers["Referrer-Policy"] = "no-referrer"
+            response.headers["X-Robots-Tag"] = "noindex, nofollow"
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            response.headers["X-Frame-Options"] = "DENY"
+            response.headers["Vary"] = "Cookie"
+        return response
 
     @app.exception_handler(StarletteHTTPException)
     async def http_error(_request: Request, exc: StarletteHTTPException):
@@ -81,51 +88,39 @@ def create_app(runtime: Runtime) -> FastAPI:
     @app.get("/d/{token}", response_class=HTMLResponse)
     def drive_page(request: Request, token: str):
         link = runtime.store.get_link(token)
-        if link is None or link.kind != "drive" or link_expired(link.expires_at, runtime.clock.now()):
+        if link is None or link.kind != "drive":
             return HTMLResponse(NOT_FOUND, status_code=404)
-        drives = runtime.teslamate.drives_by_ids(runtime.settings.car_id, link.drive_ids)
-        if len(drives) != len(link.drive_ids):
-            return HTMLResponse(NOT_FOUND, status_code=404)
-        ordered = sorted(drives, key=lambda drive: (drive.end_date, drive.id))
-        tracks = [
-            runtime.teslamate.track(drive.id, drive.start_date, drive.end_date) for drive in ordered
-        ]
-        page = build_drive_page(ordered, tracks, link.destination, runtime.settings, _lookup_car(runtime))
-        return templates.TemplateResponse(request, "drive.html", {"v": page})
+        if link_expired(link.expires_at, runtime.clock.now()) and not portal.authenticated(request):
+            return portal.expired_page(request)
+        return portal.render_drive(request, link.drive_ids, link.destination)
 
     @app.get("/c/{token}", response_class=HTMLResponse)
     def charge_page(request: Request, token: str):
         link = runtime.store.get_link(token)
         if link is None or link.kind != "charge" or link.charge_id is None:
             return HTMLResponse(NOT_FOUND, status_code=404)
-        if link_expired(link.expires_at, runtime.clock.now()):
-            return HTMLResponse(NOT_FOUND, status_code=404)
-        charge = runtime.teslamate.charge_by_id(runtime.settings.car_id, link.charge_id)
-        if charge is None:
-            return HTMLResponse(NOT_FOUND, status_code=404)
-        page = build_charge_page(charge, runtime.settings)
-        return templates.TemplateResponse(request, "charge.html", {"v": page})
+        if link_expired(link.expires_at, runtime.clock.now()) and not portal.authenticated(request):
+            return portal.expired_page(request)
+        return portal.render_charge(request, link.charge_id)
 
     @app.get("/r/{token}", response_class=HTMLResponse)
     def report_page(request: Request, token: str):
         link = runtime.store.get_link(token)
-        if link is None or link.kind != "report" or link_expired(link.expires_at, runtime.clock.now()):
+        if link is None or link.kind != "report":
             return HTMLResponse(NOT_FOUND, status_code=404)
+        if link_expired(link.expires_at, runtime.clock.now()) and not portal.authenticated(request):
+            return portal.expired_page(request)
         report = runtime.store.get_report(token)
         if report is None:
             return HTMLResponse(NOT_FOUND, status_code=404)
         return templates.TemplateResponse(
-            request, "report.html", {"v": report},
+            request, "report.html", {"v": report, **portal.detail_context(request)},
             headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "X-Robots-Tag": "noindex, nofollow"},
         )
 
     @app.get("/settings", response_class=HTMLResponse)
     def settings_page(request: Request):
         return templates.TemplateResponse(request, "settings.html", {})
-
-    @app.get("/", response_class=HTMLResponse)
-    def index():
-        return HTMLResponse(NOT_FOUND, status_code=404)
 
     assets = WebAssets()
     templates.env.globals["assets"] = assets

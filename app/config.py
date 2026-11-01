@@ -78,10 +78,18 @@ class Settings:
     tz: str = "Asia/Shanghai"
     reports_enabled: bool = True
     report_hour: int = 9
+    admin_username: str = "admin"
+    admin_password_hash: str = ""
 
     def __post_init__(self) -> None:
+        from app.auth import valid_password_hash
+
         if not 0 <= self.report_hour <= 23:
             raise ConfigError("REPORT_HOUR 必须在 0 到 23 之间")
+        if not self.admin_username or len(self.admin_username) > 128:
+            raise ConfigError("ADMIN_USERNAME 长度必须为 1 到 128 个字符")
+        if self.admin_password_hash and not valid_password_hash(self.admin_password_hash):
+            raise ConfigError("ADMIN_PASSWORD_HASH 格式错误，请使用 python -m app.auth 生成")
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -110,6 +118,8 @@ class Settings:
             tz=_text("TZ", "Asia/Shanghai"),
             reports_enabled=_bool("REPORTS_ENABLED", True),
             report_hour=_int("REPORT_HOUR", 9),
+            admin_username=_text("ADMIN_USERNAME", "admin"),
+            admin_password_hash=_text("ADMIN_PASSWORD_HASH", ""),
         )
 
 
@@ -120,6 +130,7 @@ def secret_values(settings: Settings) -> list[str]:
         settings.bark_device_key,
         settings.amap_js_key,
         settings.amap_security_js_code,
+        settings.admin_password_hash,
     ]
     password = urlsplit(settings.database_url).password
     if password:

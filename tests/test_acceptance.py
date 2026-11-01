@@ -407,8 +407,9 @@ def test_13_ttl_zero_stays_open_and_one_day_expires_after_24h(tmp_path):
         assert expired.status_code == 404
         assert missing.status_code == 404
         assert still.text != expired.text
-        assert expired.text == missing.text == "未找到"
-        assert "id" not in expired.text.lower()
+        assert missing.text == "未找到"
+        assert "分享链接已过期" in expired.text
+        assert "登录后查看" in expired.text
 
     run(zero())
     run(one_day())

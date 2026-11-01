@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {% include "_theme_head.html" %}
+  <title>登录 · TeslaSlip</title>
+</head>
+<body>
+<div class="sheet">
+  <header class="bar">
+    <div class="bar-row">
+      <div class="titles"><p class="eyebrow">TeslaSlip</p><h1>我的用车记录</h1></div>
+      {% include "_theme_toggle.html" %}
+    </div>
+    <p class="sub">登录后查看报告、历史行程与充电记录</p>
+  </header>
+  <main class="portal-main">
+    <section class="card portal-card">
+      <h2>登录</h2>
+      {% if error %}<p class="portal-message" role="alert">{{ error }}</p>{% endif %}
+      {% if enabled %}
+      <form method="post" action="/login" class="portal-form">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <input type="hidden" name="next" value="{{ next }}">
+        <label>账号<input name="username" autocomplete="username" required maxlength="128" autofocus></label>
+        <label>密码<input type="password" name="password" autocomplete="current-password" required maxlength="1024"></label>
+        <button type="submit" class="portal-primary">登录并查看</button>
+      </form>
+      <p class="footnote">登录有效期为 7 天。分享单页仍可在链接有效期内直接打开。</p>
+      {% endif %}
+    </section>
+  </main>
+</div>
+</body>
+</html>

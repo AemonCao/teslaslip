@@ -71,6 +71,18 @@ CREATE TABLE IF NOT EXISTS reports (
     sent_at TEXT,
     UNIQUE(car_id, kind, period_start)
 );
+
+CREATE TABLE IF NOT EXISTS web_sessions (
+    token_hash TEXT PRIMARY KEY,
+    credential_hash TEXT NOT NULL,
+    expires_at REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS login_attempts (
+    attempted_at REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS login_attempts_time ON login_attempts(attempted_at);
+CREATE INDEX IF NOT EXISTS reports_history ON reports(car_id, period_start);
 """
 
 
@@ -243,6 +255,46 @@ class Store:
     def get_report(self, token: str) -> dict | None:
         row = self._read("SELECT snapshot FROM reports WHERE token = ?", (token,))
         return json.loads(row["snapshot"]) if row else None
+
+    def list_reports(self, car_id: int, kind: str, start: datetime, end: datetime, limit: int, offset: int) -> list[dict]:
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT r.token, r.snapshot, l.expires_at FROM reports r JOIN links l ON l.token = r.token "
+                "WHERE r.car_id = ? AND (? = '' OR r.kind = ?) AND r.period_start >= ? AND r.period_start < ? "
+                "ORDER BY r.period_start DESC, r.kind, r.token LIMIT ? OFFSET ?",
+                (car_id, kind, kind, _iso(start), _iso(end), limit, offset),
+            ).fetchall()
+        return [{"token": row["token"], "snapshot": json.loads(row["snapshot"]), "expires_at": _parse(row["expires_at"])} for row in rows]
+
+    def create_session(self, token_hash: str, credential_hash: str, expires_at: float, now: float) -> None:
+        def write() -> None:
+            self._conn.execute("DELETE FROM web_sessions WHERE expires_at <= ? OR credential_hash != ?", (now, credential_hash))
+            self._conn.execute("INSERT INTO web_sessions VALUES (?, ?, ?)", (token_hash, credential_hash, expires_at))
+
+        self._write(write)
+
+    def valid_session(self, token_hash: str, credential_hash: str, now: float) -> bool:
+        return self._read(
+            "SELECT 1 FROM web_sessions WHERE token_hash = ? AND credential_hash = ? AND expires_at > ?",
+            (token_hash, credential_hash, now),
+        ) is not None
+
+    def delete_session(self, token_hash: str) -> None:
+        self._write(lambda: self._conn.execute("DELETE FROM web_sessions WHERE token_hash = ?", (token_hash,)))
+
+    def allow_login_attempt(self, now: float) -> bool:
+        allowed = False
+
+        def write() -> None:
+            nonlocal allowed
+            self._conn.execute("DELETE FROM login_attempts WHERE attempted_at <= ?", (now - 300,))
+            count = self._conn.execute("SELECT COUNT(*) FROM login_attempts").fetchone()[0]
+            if count < 10:
+                self._conn.execute("INSERT INTO login_attempts VALUES (?)", (now,))
+                allowed = True
+
+        self._write(write)
+        return allowed
 
     def find_report(self, car_id: int, kind: str, start: datetime) -> str | None:
         row = self._read(

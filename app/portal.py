@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hmac
+import re
 import secrets
 from datetime import date, datetime, timedelta, timezone
 from urllib.parse import parse_qs, urlencode
@@ -49,7 +50,9 @@ class Portal:
         return RedirectResponse("/login?" + urlencode({"next": safe_next(target)}), status_code=303)
 
     def login_page(self, request: Request, *, error: str = "", status: int = 200, target: str | None = None):
-        csrf = secrets.token_urlsafe(32)
+        csrf = request.cookies.get(CSRF_COOKIE, "")
+        if not re.fullmatch(r"[A-Za-z0-9_-]{43}", csrf):
+            csrf = secrets.token_urlsafe(32)
         if not self.auth.enabled:
             error = "历史总览尚未启用，请先配置管理员账号。"
             status = 503
@@ -125,10 +128,20 @@ class Portal:
             if not self.auth.enabled:
                 return self.login_page(request)
             form = await read_form(request)
-            self.check_origin(request)
+            try:
+                self.check_origin(request)
+            except HTTPException:
+                log_event("登录校验拒绝", reason="origin_rejected")
+                return self.login_page(
+                    request, error="登录请求来源校验失败，请从本站登录页重新提交。", status=403,
+                    target=form.get("next", "/"),
+                )
             csrf = request.cookies.get(CSRF_COOKIE, "")
             if len(csrf) != 43 or not hmac.compare_digest(form.get("csrf", "").encode(), csrf.encode()):
-                raise HTTPException(403)
+                reason = "csrf_mismatch" if csrf else "csrf_cookie_missing"
+                log_event("登录校验拒绝", reason=reason)
+                error = "登录页面已失效，请在当前页面重新输入账号和密码。" if csrf else "浏览器未保存登录校验信息，请允许本站 Cookie 后重新登录。"
+                return self.login_page(request, error=error, status=403, target=form.get("next", "/"))
             now = self.runtime.clock.now().timestamp()
             if not self.runtime.store.allow_login_attempt(now):
                 response = self.login_page(request, error="尝试次数过多，请在 5 分钟后重试。", status=429, target=form.get("next", "/"))

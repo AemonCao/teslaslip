@@ -100,6 +100,33 @@ def test_https_cookie_is_secure(tmp_path):
         assert client.get("/").status_code == 200
 
 
+def test_multiple_login_pages_preserve_existing_form(tmp_path):
+    runtime, _, _, _ = setup(tmp_path)
+    with TestClient(create_app(runtime)) as client:
+        first = client.get("/login")
+        second = client.get("/login")
+        assert csrf_from(first) == csrf_from(second)
+        result = client.post("/login", data={
+            "username": "admin", "password": PASSWORD, "csrf": csrf_from(first), "next": "/",
+        }, follow_redirects=False)
+        assert result.status_code == 303
+        assert client.get("/").status_code == 200
+
+
+def test_login_csrf_failures_explain_recovery_without_disclosing_credentials(tmp_path, caplog):
+    runtime, _, _, _ = setup(tmp_path)
+    with TestClient(create_app(runtime)) as client:
+        missing = client.post("/login", data={"username": "admin", "password": PASSWORD, "csrf": "missing"})
+        assert missing.status_code == 403 and "允许本站 Cookie" in missing.text
+        assert "页面暂时无法打开" not in missing.text
+        stale = client.post("/login", data={"username": "admin", "password": PASSWORD, "csrf": "stale"})
+        assert stale.status_code == 403 and "登录页面已失效" in stale.text
+        origin = client.post("/login", data={"csrf": csrf_from(stale)}, headers={"Origin": "https://other.example"})
+        assert origin.status_code == 403 and "来源校验失败" in origin.text
+        assert PASSWORD not in caplog.text
+        assert csrf_from(stale) not in caplog.text
+
+
 def test_login_throttling_is_persistent_and_recovers(tmp_path):
     runtime, _, _, clock = setup(tmp_path)
     with TestClient(create_app(runtime)) as client:

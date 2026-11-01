@@ -108,7 +108,7 @@ SQLite 里的 `drive_watermark` 和 `charge_watermark` 是已经处理过的最�
 
 哈希为空时登录及总览关闭，显示未配置提示并返回 503，原有单页和通知继续工作。密码采用带随机盐的 scrypt 哈希，SQLite 只保存随机会话令牌的 SHA-256 摘要。登录状态持续 7 天、重启后保留，退出立即撤销当前会话；更换账号或密码哈希并重启服务后，旧会话失效。全局每 5 分钟最多允许 10 次登录尝试，计数跨重启保留；登录、退出和分享操作均校验表单防伪令牌。
 
-Cookie 使用 `HttpOnly`、`SameSite=Lax`；`PUBLIC_BASE_URL` 为 HTTPS 时额外启用 `Secure`。外网登录使用 HTTPS，并让 `PUBLIC_BASE_URL` 与浏览器使用的入口一致；保留 HTTP 支持用于现有局域网入口。私有页面和分享详情均设置 `Cache-Control: no-store`、`Referrer-Policy: no-referrer`、禁止搜索索引及嵌入 iframe。
+Cookie 使用 `HttpOnly`、`SameSite=Lax`；`PUBLIC_BASE_URL` 为 HTTPS 时额外启用 `Secure`，此时登录需使用 HTTPS 入口，HTTP 可用于访问匿名分享页。外网登录使用 HTTPS，并让 `PUBLIC_BASE_URL` 与浏览器使用的入口一致。页面均设置 `Cache-Control: no-store`、禁止搜索索引及嵌入 iframe。登录页、总览和历史详情使用 `Referrer-Policy: same-origin`，以保留同站表单的来源信息，同时不向外站发送来源；分享详情仍使用 `no-referrer`，避免泄露随机链接。
 
 **需要分享自动到期时，将 `TRIP_LINK_TTL_DAYS` 配为正整数，例如 `7`。默认 `0` 表示永久有效，已有永久链接也不会因新配置自动到期。**
 

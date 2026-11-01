@@ -100,6 +100,27 @@ def test_https_cookie_is_secure(tmp_path):
         assert client.get("/").status_code == 200
 
 
+def test_form_page_referrer_policy_preserves_browser_origin_without_relaxing_validation(tmp_path):
+    runtime, _, _, _ = setup(tmp_path, public_base_url="https://testserver")
+    with TestClient(create_app(runtime), base_url="https://testserver") as client:
+        form = client.get("/login")
+        assert form.headers["referrer-policy"] == "same-origin"
+        rejected = client.post("/login", headers={"Origin": "null"}, data={
+            "username": "admin", "password": PASSWORD, "csrf": csrf_from(form), "next": "/",
+        })
+        assert rejected.status_code == 403
+        result = client.post("/login", headers={"Origin": "https://testserver", "Sec-Fetch-Site": "same-origin"}, data={
+            "username": "admin", "password": PASSWORD, "csrf": csrf_from(form), "next": "/",
+        }, follow_redirects=False)
+        assert result.status_code == 303
+        overview = client.get("/")
+        assert overview.status_code == 200 and overview.headers["referrer-policy"] == "same-origin"
+        assert client.get("/history/drives/999").headers["referrer-policy"] == "same-origin"
+        assert client.get("/d/unknown").headers["referrer-policy"] == "no-referrer"
+        assert client.get("/c/unknown").headers["referrer-policy"] == "no-referrer"
+        assert client.get("/r/unknown").headers["referrer-policy"] == "no-referrer"
+
+
 def test_multiple_login_pages_preserve_existing_form(tmp_path):
     runtime, _, _, _ = setup(tmp_path)
     with TestClient(create_app(runtime)) as client:
